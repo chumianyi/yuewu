@@ -1,0 +1,16 @@
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+ios/Flutter/Flutter.podspec
+android/.gradle/
+android/local.properties
+android/.idea/
+android/captures/
+android/gradlew
+android/gradlew.bat
+android/gradle/
+android/gradle.properties
+android/gradle/wrapper/
+.DS_Store
