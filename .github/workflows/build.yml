@@ -13,7 +13,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
+          flutter-version: '3.27.0'
           channel: 'stable'
 
       - name: Setup Java
@@ -31,11 +31,7 @@ jobs:
         run: |
           sed -i 's/android:label=".*"/android:label="月悟"/' android/app/src/main/AndroidManifest.xml
           sed -i 's/<application/<application android:usesCleartextTraffic="true"/' android/app/src/main/AndroidManifest.xml
-          sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "1.9.10"/' android/build.gradle
-          grep -q "kotlin_version" android/build.gradle || echo 'ext.kotlin_version = "1.9.10"' >> android/build.gradle
-          echo "org.gradle.jvmargs=-Xmx4G" >> android/gradle.properties
-          echo "android.useAndroidX=true" >> android/gradle.properties
-          echo "android.enableJetifier=true" >> android/gradle.properties
+          echo "kotlin.compiler.execution.strategy=in-process" >> android/gradle.properties
 
       - name: Install dependencies
         run: flutter pub get
