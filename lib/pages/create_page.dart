@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api.dart';
+import 'create_character_form.dart';
+import 'create_story_form.dart';
 
 class CreatePage extends StatelessWidget {
   const CreatePage({super.key});
@@ -9,184 +11,69 @@ class CreatePage extends StatelessWidget {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
         appBar: AppBar(
-          title: const Text('创作中心'),
-          bottom: const TabBar(tabs: [
-            Tab(text: '角色'),
-            Tab(text: '故事'),
-            Tab(text: 'AI创作'),
-          ]),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.close, color: Colors.black),
+            onPressed: () => Navigator.pop(context),
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.palette, color: Colors.black),
+              onPressed: () {},
+            ),
+          ],
+          bottom: const TabBar(
+            labelColor: Colors.black,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: Colors.transparent,
+            labelStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            unselectedLabelStyle: TextStyle(fontSize: 16),
+            tabs: [
+              Tab(text: '捏形象'),
+              Tab(text: '角色'),
+              Tab(text: '故事'),
+            ],
+          ),
         ),
         body: const TabBarView(children: [
-          _CreateCharacterTab(),
-          _CreateStoryTab(),
-          _AICreateTab(),
+          _PortraitTab(),
+          _CharacterTab(),
+          _StoryTab(),
         ]),
       ),
     );
   }
 }
 
-class _CreateCharacterTab extends StatefulWidget {
-  const _CreateCharacterTab();
+class _PortraitTab extends StatefulWidget {
+  const _PortraitTab();
 
   @override
-  State<_CreateCharacterTab> createState() => _CreateCharacterTabState();
+  State<_PortraitTab> createState() => _PortraitTabState();
 }
 
-class _CreateCharacterTabState extends State<_CreateCharacterTab> {
-  final _name = TextEditingController();
-  final _desc = TextEditingController();
-  final _greeting = TextEditingController();
-  final _system = TextEditingController();
-  String? _portrait;
-  bool _saving = false;
-
-  Future<void> _generatePortrait() async {
-    final prompt = _desc.text.isEmpty ? 'anime character portrait' : _desc.text;
-    try {
-      final r = await Api.generatePortrait('anime style, $prompt');
-      setState(() => _portrait = r['url']);
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-    }
-  }
-
-  Future<void> _publish() async {
-    if (_name.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请填写角色名')));
-      return;
-    }
-    setState(() => _saving = true);
-    try {
-      await Api.createCharacter({
-        'name': _name.text, 'description': _desc.text,
-        'greeting': _greeting.text, 'systemPrompt': _system.text,
-        'portrait': _portrait ?? '', 'category': '创作',
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('发布成功')));
-        _name.clear(); _desc.clear(); _greeting.clear(); _system.clear();
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        if (_portrait != null)
-          Container(
-            height: 200,
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              image: DecorationImage(image: NetworkImage(Api.portraitUrl(_portrait)), fit: BoxFit.cover),
-            ),
-          ),
-        OutlinedButton.icon(
-          onPressed: _generatePortrait,
-          icon: const Icon(Icons.auto_awesome),
-          label: const Text('AI生成立绘'),
-        ),
-        const SizedBox(height: 16),
-        TextField(controller: _name, decoration: const InputDecoration(labelText: '角色名', border: OutlineInputBorder())),
-        const SizedBox(height: 12),
-        TextField(controller: _desc, maxLines: 2, decoration: const InputDecoration(labelText: '角色描述', border: OutlineInputBorder())),
-        const SizedBox(height: 12),
-        TextField(controller: _greeting, decoration: const InputDecoration(labelText: '开场白', border: OutlineInputBorder())),
-        const SizedBox(height: 12),
-        TextField(controller: _system, maxLines: 4, decoration: const InputDecoration(labelText: '角色设定（系统提示词）', border: OutlineInputBorder())),
-        const SizedBox(height: 24),
-        FilledButton(
-          onPressed: _saving ? null : _publish,
-          child: _saving ? const CircularProgressIndicator() : const Text('发布角色'),
-        ),
-      ],
-    );
-  }
-}
-
-class _CreateStoryTab extends StatefulWidget {
-  const _CreateStoryTab();
-
-  @override
-  State<_CreateStoryTab> createState() => _CreateStoryTabState();
-}
-
-class _CreateStoryTabState extends State<_CreateStoryTab> {
-  final _name = TextEditingController();
-  final _desc = TextEditingController();
-  final _narrator = TextEditingController();
-  final _global = TextEditingController();
-  bool _saving = false;
-
-  Future<void> _save() async {
-    if (_name.text.isEmpty) return;
-    setState(() => _saving = true);
-    try {
-      await Api.createStory({
-        'name': _name.text, 'description': _desc.text,
-        'narrator': _narrator.text, 'globalPrompt': _global.text,
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('故事已保存')));
-        _name.clear(); _desc.clear(); _narrator.clear(); _global.clear();
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        TextField(controller: _name, decoration: const InputDecoration(labelText: '故事名称', border: OutlineInputBorder())),
-        const SizedBox(height: 12),
-        TextField(controller: _desc, maxLines: 2, decoration: const InputDecoration(labelText: '故事描述', border: OutlineInputBorder())),
-        const SizedBox(height: 12),
-        TextField(controller: _narrator, decoration: const InputDecoration(labelText: '旁白风格', border: OutlineInputBorder())),
-        const SizedBox(height: 12),
-        TextField(controller: _global, maxLines: 4, decoration: const InputDecoration(labelText: '全局提示词/约束', border: OutlineInputBorder())),
-        const SizedBox(height: 24),
-        FilledButton(onPressed: _saving ? null : _save, child: _saving ? const CircularProgressIndicator() : const Text('保存故事')),
-      ],
-    );
-  }
-}
-
-class _AICreateTab extends StatefulWidget {
-  const _AICreateTab();
-
-  @override
-  State<_AICreateTab> createState() => _AICreateTabState();
-}
-
-class _AICreateTabState extends State<_AICreateTab> {
+class _PortraitTabState extends State<_PortraitTab> {
   final _ctrl = TextEditingController();
-  final _messages = <Map<String, String>>[];
-  bool _loading = false;
+  String? _portraitUrl;
+  bool _generating = false;
+  int _styleIndex = 0;
 
-  Future<void> _send() async {
-    final t = _ctrl.text.trim();
-    if (t.isEmpty) return;
-    setState(() { _messages.add({'role': 'user', 'content': t}); _ctrl.clear(); _loading = true; });
+  final _styles = ['通用', 'CG概念', '言情漫画', '像素画'];
+
+  Future<void> _generate() async {
+    if (_ctrl.text.isEmpty) return;
+    setState(() => _generating = true);
     try {
-      final r = await Api.chat(model: 'detailed', messages: _messages.map((m) => {'role': m['role']!, 'content': m['content']!}).toList());
-      setState(() => _messages.add({'role': 'assistant', 'content': r['reply'] ?? ''}));
+      final prompt = 'anime style, ${_styles[_styleIndex]}, ${_ctrl.text}';
+      final r = await Api.generatePortrait(prompt);
+      setState(() => _portraitUrl = r['url']);
     } catch (e) {
-      setState(() => _messages.add({'role': 'assistant', 'content': e.toString()}));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _generating = false);
     }
   }
 
@@ -195,36 +82,346 @@ class _AICreateTabState extends State<_AICreateTab> {
     return Column(
       children: [
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: _messages.length,
-            itemBuilder: (_, i) {
-              final m = _messages[i];
-              final isUser = m['role'] == 'user';
-              return Align(
-                alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isUser ? Theme.of(context).colorScheme.primaryContainer : Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: _portraitUrl != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: Image.network(Api.portraitUrl(_portraitUrl), fit: BoxFit.cover),
+                          )
+                        : TextField(
+                            controller: _ctrl,
+                            maxLines: null,
+                            expands: true,
+                            textAlignVertical: TextAlignVertical.top,
+                            decoration: const InputDecoration(
+                              hintText: '输入你脑海中的形象',
+                              hintStyle: TextStyle(color: Colors.grey, fontSize: 18),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.all(24),
+                            ),
+                          ),
                   ),
-                  child: Text(m['content'] ?? ''),
-                ),
-              );
-            },
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () {},
+                          icon: const Icon(Icons.add_photo_alternate, size: 18),
+                          label: const Text('参考图'),
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _generate,
+                          icon: _generating
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.auto_awesome, size: 18, color: Colors.green),
+                          label: const Text('AI帮写', style: TextStyle(color: Colors.green)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.shade50,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-        if (_loading) const LinearProgressIndicator(),
+        // Style presets
         Padding(
-          padding: const EdgeInsets.all(8),
-          child: Row(children: [
-            Expanded(child: TextField(controller: _ctrl, decoration: const InputDecoration(hintText: '和AI聊聊你的创意...', border: OutlineInputBorder()))),
-            const SizedBox(width: 8),
-            IconButton.filled(onPressed: _send, icon: const Icon(Icons.send)),
-          ]),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('风格', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              Text('Kolors', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+            ],
+          ),
         ),
+        SizedBox(
+          height: 100,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            children: [
+              for (int i = 0; i < _styles.length; i++)
+                GestureDetector(
+                  onTap: () => setState(() => _styleIndex = i),
+                  child: Container(
+                    width: 72,
+                    margin: const EdgeInsets.only(right: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _styleIndex == i ? Colors.yellow : Colors.transparent,
+                        width: 3,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Container(
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(_styles[i], style: const TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ),
+              Container(
+                width: 72,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(child: Text('...', style: TextStyle(fontSize: 24))),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+}
+
+class _CharacterTab extends StatefulWidget {
+  const _CharacterTab();
+
+  @override
+  State<_CharacterTab> createState() => _CharacterTabState();
+}
+
+class _CharacterTabState extends State<_CharacterTab> {
+  final _ctrl = TextEditingController();
+  final _chips = ['养只美男鱼', '强娶豪夺', '穿越', '京圈太子爷', '你的醋精老公', '你的闺蜜', '经营模拟器'];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _ctrl,
+                      maxLines: null,
+                      expands: true,
+                      textAlignVertical: TextAlignVertical.top,
+                      decoration: const InputDecoration(
+                        hintText: '输入你想创建的角色',
+                        hintStyle: TextStyle(color: Colors.grey, fontSize: 18),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(24),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => CreateCharacterForm(prefill: _ctrl.text)));
+                        },
+                        icon: const Icon(Icons.auto_awesome, size: 18, color: Colors.green),
+                        label: const Text('AI助手', style: TextStyle(color: Colors.green)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade50,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Quick chips
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final chip in _chips)
+                ActionChip(
+                  label: Text(chip),
+                  onPressed: () => _ctrl.text = chip,
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+              ActionChip(
+                label: const Text('... 更多'),
+                onPressed: () {},
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+}
+
+class _StoryTab extends StatefulWidget {
+  const _StoryTab();
+
+  @override
+  State<_StoryTab> createState() => _StoryTabState();
+}
+
+class _StoryTabState extends State<_StoryTab> {
+  final _ctrl = TextEditingController();
+  bool _isPlot = true;
+  final _chips = ['弹幕系统', '拒绝PUA', '角色失忆了', '我是副本Boss', '我有隐藏实力'];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Toggle
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              GestureDetector(
+                onTap: () => setState(() => _isPlot = true),
+                child: Text('剧情故事', style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: _isPlot ? FontWeight.bold : FontWeight.normal,
+                  color: _isPlot ? Colors.black : Colors.grey,
+                )),
+              ),
+              const SizedBox(width: 24),
+              GestureDetector(
+                onTap: () => setState(() => _isPlot = false),
+                child: Text('开放故事', style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: !_isPlot ? FontWeight.bold : FontWeight.normal,
+                  color: !_isPlot ? Colors.black : Colors.grey,
+                )),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                children: [
+                  // Add character
+                  Container(
+                    margin: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Center(
+                      child: Text('+ 参与角色（可选）', style: TextStyle(color: Colors.grey, fontSize: 15)),
+                    ),
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: _ctrl,
+                      maxLines: null,
+                      expands: true,
+                      textAlignVertical: TextAlignVertical.top,
+                      decoration: const InputDecoration(
+                        hintText: '输入你想构建的世界观',
+                        hintStyle: TextStyle(color: Colors.grey, fontSize: 18),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(24),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => CreateStoryForm(prefill: _ctrl.text)));
+                        },
+                        icon: const Icon(Icons.auto_awesome, size: 18, color: Colors.green),
+                        label: const Text('AI助手', style: TextStyle(color: Colors.green)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade50,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Quick chips
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final chip in _chips)
+                ActionChip(
+                  label: Text(chip),
+                  onPressed: () => _ctrl.text = chip,
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+              ActionChip(
+                label: const Text('... 更多'),
+                onPressed: () {},
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
       ],
     );
   }

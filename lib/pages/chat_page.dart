@@ -29,6 +29,7 @@ class _ChatPageState extends State<ChatPage> {
   bool _loading = false;
   String _model = 'normal';
   bool _showedBreak = false;
+  bool _showKeyboard = false;
 
   @override
   void initState() {
@@ -45,164 +46,235 @@ class _ChatPageState extends State<ChatPage> {
       _messages.add({'role': 'user', 'content': text});
       _ctrl.clear();
       _loading = true;
+      _messages.add({'role': 'assistant', 'content': ''});
     });
     _scrollToBottom();
     try {
-      final history = _messages.map((m) => {'role': m['role']!, 'content': m['content']!}).toList();
-      final r = await Api.chat(
+      final history = _messages
+          .where((m) => m['content']!.isNotEmpty)
+          .map((m) => {'role': m['role']!, 'content': m['content']!})
+          .toList();
+      final stream = Api.chatStream(
         model: _model,
         messages: history,
         characterId: widget.characterId,
       );
-      setState(() {
-        _messages.add({'role': 'assistant', 'content': r['reply'] ?? ''});
-      });
-      if (r['break_reminder'] == true && !_showedBreak) {
-        _showedBreak = true;
-        if (mounted) _showBreakDialog();
+      await for (final delta in stream) {
+        setState(() {
+          _messages.last['content'] = (_messages.last['content'] ?? '') + delta;
+        });
+        _scrollToBottom();
       }
     } catch (e) {
       setState(() {
-        _messages.add({'role': 'assistant', 'content': e.toString().replaceFirst('Exception: ', '')});
+        _messages.last['content'] = e.toString().replaceFirst('Exception: ', '');
       });
     } finally {
       if (mounted) setState(() => _loading = false);
-      _scrollToBottom();
     }
-  }
-
-  void _showBreakDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('注意休息'),
-        content: const Text('你已经和AI聊了12小时啦，记得休息一下眼睛和身体哦~'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('我不玩了')),
-          FilledButton(onPressed: () => Navigator.pop(ctx), child: const Text('继续使用')),
-        ],
-      ),
-    );
   }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) {
-        _scroll.animateTo(_scroll.position.maxScrollExtent, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+        _scroll.animateTo(_scroll.position.maxScrollExtent, duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final portraitUrl = Api.portraitUrl(widget.portrait);
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            if (widget.portrait != null && widget.portrait!.isNotEmpty)
-              CircleAvatar(
-                radius: 16,
-                backgroundImage: CachedNetworkImageProvider(Api.portraitUrl(widget.portrait)),
-              )
-            else
-              CircleAvatar(
-                radius: 16,
-                child: Text(widget.characterName.isNotEmpty ? widget.characterName[0] : '?'),
-              ),
-            const SizedBox(width: 8),
-            Text(widget.title),
-          ],
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: ChoiceChip(
-              label: Text(_model == 'normal' ? '普通' : '细腻'),
-              selected: _model == 'detailed',
-              onSelected: (v) => setState(() => _model = v ? 'detailed' : 'normal'),
-            ),
-          ),
-        ],
-      ),
-      body: Column(
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          Expanded(
-            child: ListView.builder(
-              controller: _scroll,
-              padding: const EdgeInsets.all(12),
-              itemCount: _messages.length,
-              itemBuilder: (ctx, i) {
-                final m = _messages[i];
-                final isUser = m['role'] == 'user';
-                return _bubble(m['content']!, isUser);
-              },
+          // Full-screen portrait background
+          if (portraitUrl.isNotEmpty)
+            CachedNetworkImage(
+              imageUrl: portraitUrl,
+              fit: BoxFit.cover,
+              placeholder: (_, __) => Container(color: Colors.grey[900]),
+              errorWidget: (_, __, ___) => Container(color: Colors.grey[900]),
+            )
+          else
+            Container(color: Colors.grey[900]),
+          // Gradient overlay at bottom
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                stops: const [0.5, 1.0],
+              ),
             ),
           ),
-          if (_loading) const LinearProgressIndicator(),
-          _inputBar(),
+          // Content
+          SafeArea(
+            child: Column(
+              children: [
+                // Top bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.settings, color: Colors.white),
+                            onPressed: () {},
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.volume_up, color: Colors.white),
+                            onPressed: () {},
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                // Chat messages area
+                Expanded(
+                  flex: 4,
+                  child: ListView.builder(
+                    controller: _scroll,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    itemCount: _messages.length,
+                    itemBuilder: (ctx, i) {
+                      final m = _messages[i];
+                      final isUser = m['role'] == 'user';
+                      return _bubble(m['content']!, isUser);
+                    },
+                  ),
+                ),
+                // Character info bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(widget.characterName, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                            Text('@user', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      _iconBtn(Icons.favorite, '2316'),
+                      _iconBtn(Icons.share, '6'),
+                      _iconBtn(Icons.comment, '98'),
+                      _iconBtn(Icons.history, '历史'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Input bar
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _showKeyboard ? _keyboardInput() : _voiceInput(),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _iconBtn(IconData icon, String label) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: Colors.white, size: 24),
+        const SizedBox(height: 2),
+        Text(label, style: const TextStyle(color: Colors.white, fontSize: 10)),
+      ],
     );
   }
 
   Widget _bubble(String text, bool isUser) {
-    final url = Api.portraitUrl(widget.portrait);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+    if (text.isEmpty && _loading) return const SizedBox.shrink();
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+        decoration: BoxDecoration(
+          color: isUser ? Colors.blue.withOpacity(0.8) : Colors.white.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(color: isUser ? Colors.white : Colors.black87, fontSize: 15),
+        ),
+      ),
+    );
+  }
+
+  Widget _voiceInput() {
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(25),
+      ),
       child: Row(
-        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!isUser && url.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: CircleAvatar(radius: 18, backgroundImage: CachedNetworkImageProvider(url)),
-            ),
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: isUser
-                    ? Theme.of(context).colorScheme.primaryContainer
-                    : Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(text, style: const TextStyle(fontSize: 15)),
+          Expanded(
+            child: Center(
+              child: Text('按住说话', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 16)),
             ),
           ),
-          if (isUser) const SizedBox(width: 44),
+          IconButton(
+            icon: const Icon(Icons.keyboard, color: Colors.white),
+            onPressed: () => setState(() => _showKeyboard = true),
+          ),
+          IconButton(
+            icon: const Icon(Icons.add, color: Colors.white),
+            onPressed: () {},
+          ),
         ],
       ),
     );
   }
 
-  Widget _inputBar() {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _ctrl,
-                decoration: const InputDecoration(
-                  hintText: '说点什么...',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(24))),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                ),
-                maxLines: null,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _send(),
-              ),
+  Widget _keyboardInput() {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _ctrl,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: '说点什么...',
+              hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+              filled: true,
+              fillColor: Colors.white.withOpacity(0.2),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide.none),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
-            const SizedBox(width: 8),
-            IconButton.filled(
-              onPressed: _loading ? null : _send,
-              icon: const Icon(Icons.send),
-            ),
-          ],
+            onSubmitted: (_) => _send(),
+          ),
         ),
-      ),
+        const SizedBox(width: 8),
+        IconButton.filled(
+          onPressed: _loading ? null : _send,
+          icon: const Icon(Icons.send),
+        ),
+        IconButton(
+          icon: const Icon(Icons.keyboard_voice, color: Colors.white),
+          onPressed: () => setState(() => _showKeyboard = false),
+        ),
+      ],
     );
   }
 }

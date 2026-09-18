@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -96,25 +97,44 @@ class Api {
   }
 
   static Future<dynamic> getCharacterDetail(String id) => _get('/api/characters/$id');
-
   static Future<dynamic> likeCharacter(String id) => _post('/api/characters/$id/like', {});
-
   static Future<dynamic> reportCharacter(String id, String reason) =>
       _post('/api/characters/$id/report', {'reason': reason});
-
   static Future<dynamic> commentCharacter(String id, String content) =>
       _post('/api/characters/$id/comment', {'content': content});
-
   static Future<dynamic> getCharacterComments(String id) => _get('/api/characters/$id/comments');
-
   static Future<dynamic> createCharacter(Map<String, dynamic> data) => _post('/api/characters', data);
-
   static Future<dynamic> generatePortrait(String prompt) => _post('/api/generate-portrait', {'prompt': prompt});
 
-  static Future<dynamic> chat({required String model, required List<Map<String, String>> messages, String? characterId}) {
+  static Stream<String> chatStream({required String model, required List<Map<String, String>> messages, String? characterId}) async* {
+    final t = await token;
+    final client = http.Client();
+    final req = http.Request('POST', Uri.parse('$baseUrl/api/chat/stream'));
+    req.headers['Content-Type'] = 'application/json';
+    if (t != null) req.headers['Authorization'] = 'Bearer $t';
     final body = <String, dynamic>{'model': model, 'messages': messages};
     if (characterId != null) body['characterId'] = characterId;
-    return _post('/api/chat', body);
+    req.body = jsonEncode(body);
+
+    final streamed = await client.send(req);
+    if (streamed.statusCode >= 400) {
+      final err = await streamed.stream.bytesToString();
+      throw err;
+    }
+
+    await for (var line in streamed.stream.transform(utf8.decoder).transform(const LineSplitter())) {
+      if (!line.startsWith('data: ')) continue;
+      final data = line.substring(6).trim();
+      if (data.isEmpty) continue;
+      try {
+        final j = jsonDecode(data);
+        if (j['error'] != null) throw j['error'];
+        if (j['delta'] != null) yield j['delta'];
+      } catch (e) {
+        if (e is String) rethrow;
+      }
+    }
+    client.close();
   }
 
   static Future<dynamic> getPartner() => _get('/api/partner');
