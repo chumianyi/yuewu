@@ -71,7 +71,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (!_loggedIn) {
-      return LoginPage(onLogin: () => setState(() => _loggedIn = true));
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final result = await Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPage()));
+        if (result == true || result is String) {
+          setState(() => _loggedIn = true);
+        }
+      });
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     return const MainShell();
   }

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:http/http.dart' as http;
 import '../api.dart';
-
 class ChatPage extends StatefulWidget {
   final String title;
   final String? portrait;
@@ -60,7 +59,7 @@ class _ChatPageState extends State<ChatPage> {
     try {
       final token = await Api.token;
       final resp = await http.get(
-        Uri.parse('${Api.baseUrl}/api/chat/history?characterId=${widget.characterId}'),
+        Uri.parse('$baseUrl/api/chat/history?characterId=${widget.characterId}'),
         headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',
