@@ -11,7 +11,7 @@ class CreatePage extends StatelessWidget {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F5F5),
+        backgroundColor: const Color(0xFFFFF0F5),
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -19,12 +19,6 @@ class CreatePage extends StatelessWidget {
             icon: const Icon(Icons.close, color: Colors.black),
             onPressed: () => Navigator.pop(context),
           ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.palette, color: Colors.black),
-              onPressed: () {},
-            ),
-          ],
           bottom: const TabBar(
             labelColor: Colors.black,
             unselectedLabelColor: Colors.grey,
@@ -61,13 +55,21 @@ class _PortraitTabState extends State<_PortraitTab> {
   bool _generating = false;
   int _styleIndex = 0;
 
-  final _styles = ['通用', 'CG概念', '言情漫画', '像素画'];
+  final _styles = [
+    {'name': '通用', 'color': Color(0xFFFFB6C1)},
+    {'name': 'CG概念', 'color': Color(0x98FB98)},
+    {'name': '言情漫画', 'color': Color(0xFFFFD700)},
+    {'name': '像素画', 'color': Color(0x87CEEB)},
+  ];
 
   Future<void> _generate() async {
-    if (_ctrl.text.isEmpty) return;
+    if (_ctrl.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先描述形象')));
+      return;
+    }
     setState(() => _generating = true);
     try {
-      final prompt = 'anime style, ${_styles[_styleIndex]}, ${_ctrl.text}';
+      final prompt = 'anime style, ${_styles[_styleIndex]['name']}, ${_ctrl.text}';
       final r = await Api.generatePortrait(prompt);
       setState(() => _portraitUrl = r['url']);
     } catch (e) {
@@ -88,7 +90,7 @@ class _PortraitTabState extends State<_PortraitTab> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: Colors.pink.shade100),
               ),
               child: Column(
                 children: [
@@ -143,7 +145,6 @@ class _PortraitTabState extends State<_PortraitTab> {
             ),
           ),
         ),
-        // Style presets
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           child: Row(
@@ -169,7 +170,7 @@ class _PortraitTabState extends State<_PortraitTab> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: _styleIndex == i ? Colors.yellow : Colors.transparent,
+                        color: _styleIndex == i ? Colors.pink : Colors.transparent,
                         width: 3,
                       ),
                     ),
@@ -179,12 +180,12 @@ class _PortraitTabState extends State<_PortraitTab> {
                         Container(
                           height: 56,
                           decoration: BoxDecoration(
-                            color: Colors.grey[200],
+                            color: _styles[i]['color'] as Color,
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(_styles[i], style: const TextStyle(fontSize: 12)),
+                        Text(_styles[i]['name'] as String, style: const TextStyle(fontSize: 12)),
                       ],
                     ),
                   ),
@@ -228,7 +229,7 @@ class _CharacterTabState extends State<_CharacterTab> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: Colors.pink.shade100),
               ),
               child: Column(
                 children: [
@@ -268,7 +269,6 @@ class _CharacterTabState extends State<_CharacterTab> {
             ),
           ),
         ),
-        // Quick chips
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Wrap(
@@ -313,7 +313,6 @@ class _StoryTabState extends State<_StoryTab> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Toggle
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
@@ -346,16 +345,15 @@ class _StoryTabState extends State<_StoryTab> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: Colors.pink.shade100),
               ),
               child: Column(
                 children: [
-                  // Add character
                   Container(
                     margin: const EdgeInsets.all(16),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(
-                      color: Colors.grey[50],
+                      color: Colors.pink.shade50,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Center(
@@ -398,7 +396,6 @@ class _StoryTabState extends State<_StoryTab> {
             ),
           ),
         ),
-        // Quick chips
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Wrap(

@@ -21,9 +21,10 @@ class YueWuApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6750A4),
+          seedColor: const Color(0xFFFF69B4),
           brightness: Brightness.light,
         ),
+        scaffoldBackgroundColor: const Color(0xFFFFF0F5),
         useMaterial3: true,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),

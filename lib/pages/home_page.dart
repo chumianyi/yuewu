@@ -13,7 +13,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   List<dynamic> _chars = [];
   bool _loading = true;
-  int _cardIndex = 0;
+  final _controller = PageController();
 
   @override
   void initState() {
@@ -36,12 +36,17 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('发现伙伴'), centerTitle: true),
+      backgroundColor: const Color(0xFFFFF0F5),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _chars.isEmpty
               ? _empty()
-              : _buildCardSwiper(),
+              : PageView.builder(
+                  controller: _controller,
+                  scrollDirection: Axis.vertical,
+                  itemCount: _chars.length,
+                  itemBuilder: (ctx, i) => _card(_chars[i]),
+                ),
     );
   }
 
@@ -60,102 +65,57 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildCardSwiper() {
-    final ch = _chars[_cardIndex];
-    return Column(
-      children: [
-        Expanded(
-          child: GestureDetector(
-            onTap: () => _openChat(ch),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ch['portrait'] != null && ch['portrait'].isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: Api.portraitUrl(ch['portrait']),
-                            fit: BoxFit.cover,
-                            errorWidget: (_, __, ___) => Container(color: Colors.purple[100]),
-                          )
-                        : Container(
-                            color: Theme.of(context).colorScheme.primaryContainer,
-                            child: Center(
-                              child: Text(ch['name']?[0] ?? '?', style: const TextStyle(fontSize: 80, fontWeight: FontWeight.bold)),
-                            ),
-                          ),
-                    Positioned(
-                      bottom: 0, left: 0, right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                            colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(ch['name'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 4),
-                            Text(ch['description'] ?? '', style: const TextStyle(color: Colors.white70)),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(Icons.favorite, color: Colors.pinkAccent, size: 16),
-                                const SizedBox(width: 4),
-                                Text('${ch['likes'] ?? 0}', style: const TextStyle(color: Colors.white70)),
-                                const SizedBox(width: 16),
-                                Chip(label: Text(ch['category'] ?? ''), labelStyle: const TextStyle(fontSize: 12), padding: EdgeInsets.zero),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+  Widget _card(dynamic ch) {
+    final url = Api.portraitUrl(ch['portrait']);
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(
+        title: ch['name'] ?? '聊天',
+        characterName: ch['name'] ?? '',
+        portrait: ch['portrait'],
+        characterId: ch['id'],
+        greeting: ch['greeting'],
+      ))),
+      child: Container(
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [BoxShadow(color: Colors.pink.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))],
         ),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 24),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Stack(
+            fit: StackFit.expand,
             children: [
-              IconButton.filledTonal(
-                iconSize: 32,
-                onPressed: _cardIndex > 0 ? () => setState(() => _cardIndex--) : null,
-                icon: const Icon(Icons.chevron_left),
-              ),
-              IconButton.filled(
-                iconSize: 36,
-                onPressed: () => _openChat(ch),
-                icon: const Icon(Icons.chat),
-              ),
-              IconButton.filledTonal(
-                iconSize: 32,
-                onPressed: _cardIndex < _chars.length - 1 ? () => setState(() => _cardIndex++) : null,
-                icon: const Icon(Icons.chevron_right),
+              url.isNotEmpty
+                  ? CachedNetworkImage(imageUrl: url, fit: BoxFit.cover)
+                  : Container(
+                      color: const Color(0xFFFFB6C1),
+                      child: Center(child: Text(ch['name']?[0] ?? '?', style: const TextStyle(fontSize: 80, color: Colors.white))),
+                    ),
+              Positioned(
+                bottom: 0, left: 0, right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(ch['name'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text(ch['description'] ?? '', style: const TextStyle(color: Colors.white70)),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
         ),
-      ],
+      ),
     );
-  }
-
-  void _openChat(dynamic ch) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(
-      title: ch['name'] ?? '聊天',
-      characterName: ch['name'] ?? '',
-      portrait: ch['portrait'],
-      characterId: ch['id'],
-      greeting: ch['greeting'],
-    )));
   }
 }

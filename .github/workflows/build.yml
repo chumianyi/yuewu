@@ -47,14 +47,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK (debug)
-        run: flutter build apk --debug
+      - name: Build APK (release)
+        run: flutter build apk --release
 
       - name: Upload APK as Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.3
-          name: 月悟 v1.0.3
-          files: build/app/outputs/flutter-apk/app-debug.apk
+          tag_name: v1.1.0
+          name: 月悟 v1.1.0
+          files: build/app/outputs/flutter-apk/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

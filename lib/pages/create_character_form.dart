@@ -23,16 +23,44 @@ class _CreateCharacterFormState extends State<CreateCharacterForm> {
     if (widget.prefill.isNotEmpty) _setting.text = widget.prefill;
   }
 
-  Future<void> _generatePortrait() async {
-    if (_name.text.isEmpty && _setting.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('先填写角色名或设定')));
+  void _showGenerateDialog() {
+    final promptCtrl = TextEditingController(text: _setting.text.isNotEmpty ? _setting.text : _name.text);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('描述你的角色形象'),
+        content: TextField(
+          controller: promptCtrl,
+          maxLines: 3,
+          decoration: const InputDecoration(hintText: '描述外貌、服装、风格...'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await _generatePortrait(promptCtrl.text);
+            },
+            child: const Text('生成'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _generatePortrait(String prompt) async {
+    if (prompt.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请描述形象')));
       return;
     }
+    setState(() => _publishing = true);
     try {
-      final r = await Api.generatePortrait('anime portrait, ${_name.text}, ${_setting.text}');
+      final r = await Api.generatePortrait('anime portrait, $prompt');
       setState(() => _portrait = r['url']);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) setState(() => _publishing = false);
     }
   }
 
@@ -65,7 +93,7 @@ class _CreateCharacterFormState extends State<CreateCharacterForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: const Color(0xFFFFF0F5),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -80,15 +108,14 @@ class _CreateCharacterFormState extends State<CreateCharacterForm> {
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                // Portrait area
                 GestureDetector(
-                  onTap: _generatePortrait,
+                  onTap: _showGenerateDialog,
                   child: Container(
                     height: 200,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade200),
+                      border: Border.all(color: Colors.pink.shade200),
                     ),
                     child: _portrait != null
                         ? ClipRRect(
@@ -158,7 +185,6 @@ class _CreateCharacterFormState extends State<CreateCharacterForm> {
               ],
             ),
           ),
-          // Publish button
           Padding(
             padding: const EdgeInsets.all(20),
             child: SizedBox(
@@ -166,8 +192,8 @@ class _CreateCharacterFormState extends State<CreateCharacterForm> {
               height: 56,
               child: FilledButton(
                 style: FilledButton.styleFrom(
-                  backgroundColor: Colors.yellow,
-                  foregroundColor: Colors.black,
+                  backgroundColor: const Color(0xFFFF69B4),
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                 ),
                 onPressed: _publishing ? null : _publish,
