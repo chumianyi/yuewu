@@ -37,6 +37,8 @@ jobs:
           m = re.sub(r'android:label=\"[^\"]*\"', 'android:label=\"月悟\"', m)
           if 'usesCleartextTraffic' not in m:
               m = m.replace('<application', '<application android:usesCleartextTraffic=\"true\"', 1)
+          if 'INTERNET' not in m:
+              m = m.replace('<manifest', '<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n    <uses-permission android:name=\"android.permission.INTERNET\"/>', 1)
           with open('android/app/src/main/AndroidManifest.xml','w') as f: f.write(m)
           print(open('android/app/src/main/AndroidManifest.xml').read())
           "
@@ -45,14 +47,14 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK
-        run: flutter build apk --release
+      - name: Build APK (debug)
+        run: flutter build apk --debug
 
       - name: Upload APK as Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.1
-          name: 月悟 v1.0.1
-          files: build/app/outputs/flutter-apk/app-release.apk
+          tag_name: v1.0.3
+          name: 月悟 v1.0.3
+          files: build/app/outputs/flutter-apk/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
