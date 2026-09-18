@@ -1,425 +1,395 @@
 import 'package:flutter/material.dart';
-import '../api.dart';
-import 'create_character_form.dart';
-import 'create_story_form.dart';
+import 'create_character_page.dart';
+import 'create_story_page.dart';
 
-class CreatePage extends StatelessWidget {
+class CreatePage extends StatefulWidget {
   const CreatePage({super.key});
 
   @override
+  State<CreatePage> createState() => _CreatePageState();
+}
+
+class _CreatePageState extends State<CreatePage>
+    with TickerProviderStateMixin {
+  late TabController _tabController;
+
+  final Color primaryPink = const Color(0xFFFFB6C1);
+  final Color bgPink = const Color(0xFFFFF0F5);
+  final Color accentPink = const Color(0xFFFF69B4);
+
+  final List<String> _tabs = const ['捏形象', '角色', '故事'];
+
+  final List<Map<String, dynamic>> _stylePresets = const [
+    {'label': '通用', 'color': Color(0xFFFFD1DC)},
+    {'label': 'CG概念', 'color': Color(0xFFE6E6FA)},
+    {'label': '言情漫画', 'color': Color(0xFFFFC0CB)},
+    {'label': '像素画', 'color': Color(0xFF98FB98)},
+    {'label': '全部', 'color': Color(0xFFFFDEAD)},
+  ];
+
+  final List<String> _characterChips = const [
+    '养只美男鱼',
+    '强娶豪夺',
+    '穿越',
+    '京圈太子爷',
+    '你的醋精老公',
+    '你的闺蜜',
+    '经营模拟器',
+    '更多',
+  ];
+
+  final List<String> _storyChips = const [
+    '弹幕系统',
+    '拒绝PUA',
+    '角色失忆了',
+    '我是副本Boss',
+    '我有隐藏实力',
+    '更多',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        backgroundColor: const Color(0xFFFFF0F5),
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.close, color: Colors.black),
-            onPressed: () => Navigator.pop(context),
-          ),
-          bottom: const TabBar(
-            labelColor: Colors.black,
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: Colors.transparent,
-            labelStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            unselectedLabelStyle: TextStyle(fontSize: 16),
-            tabs: [
-              Tab(text: '捏形象'),
-              Tab(text: '角色'),
-              Tab(text: '故事'),
-            ],
+    return Scaffold(
+      backgroundColor: bgPink,
+      appBar: AppBar(
+        backgroundColor: bgPink,
+        elevation: 0,
+        title: Text(
+          '创作',
+          style: TextStyle(
+            color: accentPink,
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        body: const TabBarView(children: [
-          _PortraitTab(),
-          _CharacterTab(),
-          _StoryTab(),
-        ]),
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: accentPink,
+          unselectedLabelColor: Colors.grey[400],
+          indicatorColor: accentPink,
+          indicatorWeight: 3,
+          tabs: _tabs.map((t) => Tab(text: t)).toList(),
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildPortraitTab(),
+          _buildCharacterTab(),
+          _buildStoryTab(),
+        ],
       ),
     );
   }
-}
 
-class _PortraitTab extends StatefulWidget {
-  const _PortraitTab();
-
-  @override
-  State<_PortraitTab> createState() => _PortraitTabState();
-}
-
-class _PortraitTabState extends State<_PortraitTab> {
-  final _ctrl = TextEditingController();
-  String? _portraitUrl;
-  bool _generating = false;
-  int _styleIndex = 0;
-
-  final _styles = [
-    {'name': '通用', 'color': Color(0xFFFFB6C1)},
-    {'name': 'CG概念', 'color': Color(0x98FB98)},
-    {'name': '言情漫画', 'color': Color(0xFFFFD700)},
-    {'name': '像素画', 'color': Color(0x87CEEB)},
-  ];
-
-  Future<void> _generate() async {
-    if (_ctrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先描述形象')));
-      return;
-    }
-    setState(() => _generating = true);
-    try {
-      final prompt = 'anime style, ${_styles[_styleIndex]['name']}, ${_ctrl.text}';
-      final r = await Api.generatePortrait(prompt);
-      setState(() => _portraitUrl = r['url']);
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-    } finally {
-      if (mounted) setState(() => _generating = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.pink.shade100),
-              ),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: _portraitUrl != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(24),
-                            child: Image.network(Api.portraitUrl(_portraitUrl), fit: BoxFit.cover),
-                          )
-                        : TextField(
-                            controller: _ctrl,
-                            maxLines: null,
-                            expands: true,
-                            textAlignVertical: TextAlignVertical.top,
-                            decoration: const InputDecoration(
-                              hintText: '输入你脑海中的形象',
-                              hintStyle: TextStyle(color: Colors.grey, fontSize: 18),
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.all(24),
-                            ),
-                          ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.add_photo_alternate, size: 18),
-                          label: const Text('参考图'),
-                          style: OutlinedButton.styleFrom(
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          ),
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: _generate,
-                          icon: _generating
-                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                              : const Icon(Icons.auto_awesome, size: 18, color: Colors.green),
-                          label: const Text('AI帮写', style: TextStyle(color: Colors.green)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green.shade50,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+  Widget _buildPortraitTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.pink.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: TextField(
+              maxLines: 5,
+              decoration: InputDecoration(
+                hintText: '输入你脑海中的形象',
+                hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.all(20),
               ),
             ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          const SizedBox(height: 16),
+          Row(
             children: [
-              const Text('风格', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-              Text('Kolors', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+              _buildActionButton('+ 参考图', Icons.image_outlined),
+              const SizedBox(width: 12),
+              _buildActionButton('+ AI帮写', Icons.auto_awesome),
             ],
           ),
-        ),
-        SizedBox(
-          height: 100,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            children: [
-              for (int i = 0; i < _styles.length; i++)
-                GestureDetector(
-                  onTap: () => setState(() => _styleIndex = i),
+          const SizedBox(height: 24),
+          Text(
+            '风格预设',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 90,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _stylePresets.length,
+              itemBuilder: (context, index) {
+                final preset = _stylePresets[index];
+                return Container(
+                  width: 72,
+                  margin: const EdgeInsets.only(right: 12),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: preset['color'] as Color,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        preset['label'] as String,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCharacterTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.pink.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: TextField(
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: '输入你想创建的角色',
+                hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.all(20),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: _buildActionButton('+ AI助手', Icons.auto_awesome),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            '快捷灵感',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 40,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _characterChips.length,
+              itemBuilder: (context, index) {
+                return Container(
+                  margin: const EdgeInsets.only(right: 10),
+                  child: ActionChip(
+                    label: Text(
+                      _characterChips[index],
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    backgroundColor: Colors.white,
+                    side: BorderSide(color: primaryPink),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CreateCharacterPage(),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStoryTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: Row(
+              children: [
+                Expanded(
                   child: Container(
-                    width: 72,
-                    margin: const EdgeInsets.only(right: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: _styleIndex == i ? Colors.pink : Colors.transparent,
-                        width: 3,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Container(
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: _styles[i]['color'] as Color,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(_styles[i]['name'] as String, style: const TextStyle(fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                ),
-              Container(
-                width: 72,
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Center(child: Text('...', style: TextStyle(fontSize: 24))),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-      ],
-    );
-  }
-}
-
-class _CharacterTab extends StatefulWidget {
-  const _CharacterTab();
-
-  @override
-  State<_CharacterTab> createState() => _CharacterTabState();
-}
-
-class _CharacterTabState extends State<_CharacterTab> {
-  final _ctrl = TextEditingController();
-  final _chips = ['养只美男鱼', '强娶豪夺', '穿越', '京圈太子爷', '你的醋精老公', '你的闺蜜', '经营模拟器'];
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.pink.shade100),
-              ),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _ctrl,
-                      maxLines: null,
-                      expands: true,
-                      textAlignVertical: TextAlignVertical.top,
-                      decoration: const InputDecoration(
-                        hintText: '输入你想创建的角色',
-                        hintStyle: TextStyle(color: Colors.grey, fontSize: 18),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.all(24),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => CreateCharacterForm(prefill: _ctrl.text)));
-                        },
-                        icon: const Icon(Icons.auto_awesome, size: 18, color: Colors.green),
-                        label: const Text('AI助手', style: TextStyle(color: Colors.green)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green.shade50,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final chip in _chips)
-                ActionChip(
-                  label: Text(chip),
-                  onPressed: () => _ctrl.text = chip,
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                ),
-              ActionChip(
-                label: const Text('... 更多'),
-                onPressed: () {},
-                backgroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-      ],
-    );
-  }
-}
-
-class _StoryTab extends StatefulWidget {
-  const _StoryTab();
-
-  @override
-  State<_StoryTab> createState() => _StoryTabState();
-}
-
-class _StoryTabState extends State<_StoryTab> {
-  final _ctrl = TextEditingController();
-  bool _isPlot = true;
-  final _chips = ['弹幕系统', '拒绝PUA', '角色失忆了', '我是副本Boss', '我有隐藏实力'];
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              GestureDetector(
-                onTap: () => setState(() => _isPlot = true),
-                child: Text('剧情故事', style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: _isPlot ? FontWeight.bold : FontWeight.normal,
-                  color: _isPlot ? Colors.black : Colors.grey,
-                )),
-              ),
-              const SizedBox(width: 24),
-              GestureDetector(
-                onTap: () => setState(() => _isPlot = false),
-                child: Text('开放故事', style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: !_isPlot ? FontWeight.bold : FontWeight.normal,
-                  color: !_isPlot ? Colors.black : Colors.grey,
-                )),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.pink.shade100),
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    margin: const EdgeInsets.all(16),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.pink.shade50,
-                      borderRadius: BorderRadius.circular(12),
+                      color: accentPink,
+                      borderRadius: BorderRadius.circular(25),
                     ),
                     child: const Center(
-                      child: Text('+ 参与角色（可选）', style: TextStyle(color: Colors.grey, fontSize: 15)),
-                    ),
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _ctrl,
-                      maxLines: null,
-                      expands: true,
-                      textAlignVertical: TextAlignVertical.top,
-                      decoration: const InputDecoration(
-                        hintText: '输入你想构建的世界观',
-                        hintStyle: TextStyle(color: Colors.grey, fontSize: 18),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.all(24),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => CreateStoryForm(prefill: _ctrl.text)));
-                        },
-                        icon: const Icon(Icons.auto_awesome, size: 18, color: Colors.green),
-                        label: const Text('AI助手', style: TextStyle(color: Colors.green)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green.shade50,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      child: Text(
+                        '剧情故事',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                   ),
-                ],
+                ),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Center(
+                      child: Text(
+                        '开放故事',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: _buildActionButton('+ 参与角色', Icons.person_add_outlined),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.pink.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: TextField(
+              maxLines: 5,
+              decoration: InputDecoration(
+                hintText: '输入你想构建的世界观',
+                hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.all(20),
               ),
             ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final chip in _chips)
-                ActionChip(
-                  label: Text(chip),
-                  onPressed: () => _ctrl.text = chip,
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                ),
-              ActionChip(
-                label: const Text('... 更多'),
-                onPressed: () {},
-                backgroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              ),
-            ],
+          const SizedBox(height: 16),
+          Center(
+            child: _buildActionButton('+ AI助手', Icons.auto_awesome),
           ),
-        ),
-        const SizedBox(height: 16),
-      ],
+          const SizedBox(height: 24),
+          Text(
+            '快捷灵感',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: _storyChips.map((chip) {
+              return ActionChip(
+                label: Text(chip, style: const TextStyle(fontSize: 13)),
+                backgroundColor: Colors.white,
+                side: BorderSide(color: primaryPink),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CreateStoryPage(),
+                    ),
+                  );
+                },
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(String label, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(25),
+        border: Border.all(color: primaryPink),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: accentPink),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: accentPink,
+              fontWeight: FontWeight.w500,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

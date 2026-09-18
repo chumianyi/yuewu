@@ -1,89 +1,228 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../api.dart';
+import 'package:http/http.dart' as http;
 
 class LoginPage extends StatefulWidget {
-  final VoidCallback onLogin;
-  const LoginPage({super.key, required this.onLogin});
+  const LoginPage({super.key});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _userCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
+  final String _baseUrl = 'http://103.236.99.177:24512';
+
+  final Color primaryPink = const Color(0xFFFFB6C1);
+  final Color bgPink = const Color(0xFFFFF0F5);
+  final Color accentPink = const Color(0xFFFF69B4);
+
+  final TextEditingController _accountController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
   bool _isLogin = true;
-  bool _loading = false;
-  String? _error;
+  bool _isLoading = false;
+  bool _obscurePassword = true;
 
   Future<void> _submit() async {
-    setState(() { _loading = true; _error = null; });
+    if (_accountController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请输入账号和密码')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
     try {
-      if (_isLogin) {
-        await Api.login(_userCtrl.text.trim(), _passCtrl.text);
+      final endpoint = _isLogin ? '/api/login' : '/api/register';
+      final response = await http.post(
+        Uri.parse('$_baseUrl$endpoint'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': _accountController.text,
+          'password': _passwordController.text,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(_isLogin ? '登录成功' : '注册成功')),
+          );
+          Navigator.pop(context, _accountController.text);
+        }
       } else {
-        await Api.register(_userCtrl.text.trim(), _passCtrl.text);
+        throw Exception('请求失败: ${response.statusCode}');
       }
-      if (mounted) widget.onLogin();
     } catch (e) {
-      setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${_isLogin ? '登录' : '注册'}失败: $e')),
+        );
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Icon(Icons.auto_awesome, size: 72, color: Color(0xFF6750A4)),
-              const SizedBox(height: 16),
-              Text('月悟', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Text(_isLogin ? '登录你的AI伙伴' : '创建账号', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600])),
-              const SizedBox(height: 48),
-              TextField(
-                controller: _userCtrl,
-                decoration: const InputDecoration(
-                  labelText: '账号',
-                  prefixIcon: Icon(Icons.person_outline),
-                  border: OutlineInputBorder(),
+      backgroundColor: bgPink,
+      appBar: AppBar(
+        backgroundColor: bgPink,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.close, color: Colors.grey[600]),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 20),
+            Center(
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: primaryPink.withOpacity(0.3),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.auto_awesome,
+                  size: 40,
+                  color: accentPink,
                 ),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: '密码',
-                  prefixIcon: Icon(Icons.lock_outline),
-                  border: OutlineInputBorder(),
+            ),
+            const SizedBox(height: 24),
+            Center(
+              child: Text(
+                '月悟',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: accentPink,
                 ),
               ),
-              const SizedBox(height: 24),
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error), textAlign: TextAlign.center),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: Text(
+                _isLogin ? '登录你的账号' : '创建新账号',
+                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              ),
+            ),
+            const SizedBox(height: 40),
+            _buildInputField(
+              controller: _accountController,
+              hint: '账号',
+              icon: Icons.person_outline,
+            ),
+            const SizedBox(height: 16),
+            _buildInputField(
+              controller: _passwordController,
+              hint: '密码',
+              icon: Icons.lock_outline,
+              isPassword: true,
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              height: 54,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accentPink,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(27),
+                  ),
                 ),
-              FilledButton(
-                onPressed: _loading ? null : _submit,
-                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-                child: _loading
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : Text(_isLogin ? '登录' : '注册'),
+                onPressed: _isLoading ? null : _submit,
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(
+                        _isLogin ? '登录' : '注册',
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
-              TextButton(
-                onPressed: () => setState(() => _isLogin = !_isLogin),
-                child: Text(_isLogin ? '没有账号？注册' : '已有账号？登录'),
+            ),
+            const SizedBox(height: 20),
+            Center(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() => _isLogin = !_isLogin);
+                },
+                child: RichText(
+                  text: TextSpan(
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    children: [
+                      TextSpan(text: _isLogin ? '还没有账号？' : '已有账号？'),
+                      TextSpan(
+                        text: _isLogin ? ' 立即注册' : ' 去登录',
+                        style: TextStyle(
+                          color: accentPink,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool isPassword = false,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.pink.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword && _obscurePassword,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+          prefixIcon: Icon(icon, color: accentPink, size: 22),
+          suffixIcon: isPassword
+              ? IconButton(
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: Colors.grey[400],
+                    size: 22,
+                  ),
+                  onPressed: () {
+                    setState(() => _obscurePassword = !_obscurePassword);
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
           ),
         ),
       ),
