@@ -31,8 +31,15 @@ jobs:
 
       - name: Configure Android
         run: |
-          sed -i 's/android:label=".*"/android:label="月悟"/' android/app/src/main/AndroidManifest.xml
-          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' android/app/src/main/AndroidManifest.xml
+          python3 -c "
+          import re
+          with open('android/app/src/main/AndroidManifest.xml','r') as f: m=f.read()
+          m = re.sub(r'android:label=\"[^\"]*\"', 'android:label=\"月悟\"', m)
+          if 'usesCleartextTraffic' not in m:
+              m = m.replace('<application', '<application android:usesCleartextTraffic=\"true\"', 1)
+          with open('android/app/src/main/AndroidManifest.xml','w') as f: f.write(m)
+          print(open('android/app/src/main/AndroidManifest.xml').read())
+          "
           echo "kotlin.compiler.execution.strategy=in-process" >> android/gradle.properties
 
       - name: Install dependencies
@@ -44,8 +51,8 @@ jobs:
       - name: Upload APK as Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.0
-          name: 月悟 v1.0.0
+          tag_name: v1.0.1
+          name: 月悟 v1.0.1
           files: build/app/outputs/flutter-apk/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
