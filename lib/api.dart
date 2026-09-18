@@ -148,6 +148,8 @@ class Api {
   static Future<dynamic> getUsage() => _get('/api/usage');
   static Future<dynamic> sendFeedback(String content) => _post('/api/feedback', {'content': content});
   static Future<dynamic> me() => _get('/api/me');
+  static Future<dynamic> getMyCharacters() => _get('/api/my/characters');
+  static Future<dynamic> getMyStories() => _get('/api/my/stories');
 
   static String portraitUrl(String? path) {
     if (path == null || path.isEmpty) return '';

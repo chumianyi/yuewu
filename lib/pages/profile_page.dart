@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'login_page.dart';
+import '../api.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -30,6 +31,8 @@ class _ProfilePageState extends State<ProfilePage> {
               _buildUserHeader(),
               const SizedBox(height: 24),
               _buildUsageCard(),
+              const SizedBox(height: 16),
+              _buildMyWorksSection(),
               const SizedBox(height: 16),
               _buildMenuSection(),
             ],
@@ -153,6 +156,72 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMyWorksSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('我的作品', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: accentPink)),
+          const SizedBox(height: 12),
+          FutureBuilder(
+            future: Future.wait([Api.getMyCharacters(), Api.getMyStories()]),
+            builder: (ctx, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Text('加载失败', style: TextStyle(color: Colors.grey[500]));
+              }
+              final chars = (snapshot.data![0]['list'] as List? ?? []);
+              final stories = (snapshot.data![1]['list'] as List? ?? []);
+              if (chars.isEmpty && stories.isEmpty) {
+                return Text('还没有作品，去创作吧', style: TextStyle(color: Colors.grey[500]));
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (chars.isNotEmpty) ...[
+                    Text('我的角色 (${chars.length})', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                    const SizedBox(height: 8),
+                    ...chars.map((c) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: CircleAvatar(
+                        backgroundImage: c['portrait'] != null && c['portrait'].isNotEmpty
+                            ? NetworkImage(Api.portraitUrl(c['portrait']))
+                            : null,
+                        child: c['portrait'] == null || c['portrait'].isEmpty
+                            ? Text(c['name']?[0] ?? '?')
+                            : null,
+                      ),
+                      title: Text(c['name'] ?? ''),
+                      subtitle: Text('${c['likes'] ?? 0} 点赞'),
+                    )),
+                  ],
+                  if (stories.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text('我的故事 (${stories.length})', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                    const SizedBox(height: 8),
+                    ...stories.map((s) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.book, color: accentPink),
+                      title: Text(s['name'] ?? ''),
+                      subtitle: Text(s['description'] ?? ''),
+                    )),
+                  ],
+                ],
+              );
+            },
           ),
         ],
       ),
