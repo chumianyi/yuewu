@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// 从创建/详情页返回时通知主页重新加载最新列表。
+final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
+
 class ApiService {
   ApiService._internal();
   static final ApiService _instance = ApiService._internal();

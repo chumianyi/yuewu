@@ -9,7 +9,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with RouteAware {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   List<dynamic> _characters = [];
@@ -23,9 +23,22 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context)!);
+  }
+
+  @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _pageController.dispose();
     super.dispose();
+  }
+
+  // 从创建/详情页返回时自动刷新最新角色列表
+  @override
+  void didPopNext() {
+    _loadCharacters();
   }
 
   Future<void> _loadCharacters() async {

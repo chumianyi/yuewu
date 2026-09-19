@@ -59,10 +59,8 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _loadAll() async {
-    await Future.wait([
-      _loadCharacterDetail(),
-      _loadHistory(),
-    ]);
+    await _loadCharacterDetail();
+    await _loadHistory();
     if (mounted) setState(() => _loadingHistory = false);
   }
 
@@ -88,8 +86,37 @@ class _ChatPageState extends State<ChatPage> {
             });
           }
         });
+      } else {
+        // 无历史时，把角色开场白作为第一条 AI 消息
+        final greeting = (_characterDetail?['greeting'] ?? '').toString();
+        if (greeting.isNotEmpty && mounted) {
+          setState(() {
+            _messages.add({'role': 'assistant', 'content': greeting});
+          });
+        }
       }
     } catch (_) {}
+  }
+
+  /// 组装角色系统提示词（角色设定 systemPrompt）
+  String get _systemPromptText {
+    final d = _characterDetail;
+    if (d == null) return '';
+    final sp = (d['systemPrompt'] ?? d['system_prompt'] ?? '').toString();
+    final name = (d['name'] ?? widget.characterName).toString();
+    final desc = (d['description'] ?? d['brief'] ?? '').toString();
+    final buffer = StringBuffer();
+    if (sp.isNotEmpty) {
+      buffer.write(sp);
+    }
+    if (name.isNotEmpty) {
+      if (buffer.isNotEmpty) buffer.write('\n');
+      buffer.write('你正在扮演角色：$name。');
+    }
+    if (desc.isNotEmpty) {
+      buffer.write(' $desc');
+    }
+    return buffer.toString();
   }
 
   String get _modelForMode {
@@ -119,9 +146,17 @@ class _ChatPageState extends State<ChatPage> {
     _scrollToBottom();
 
     try {
+      // 每次请求都把角色 systemPrompt 作为第一条 system 消息带上
+      final sys = _systemPromptText;
+      final reqMessages = <Map<String, String>>[
+        if (sys.isNotEmpty) {'role': 'system', 'content': sys},
+        ..._messages
+            .sublist(0, _messages.length - 1)
+            .map((m) => Map<String, String>.from(m)),
+      ];
       final res = await _api.chat(
         _modelForMode,
-        _messages.sublist(0, _messages.length - 1).map((m) => Map<String, String>.from(m)).toList(),
+        reqMessages,
         widget.characterId,
         widget.storyId,
       );
