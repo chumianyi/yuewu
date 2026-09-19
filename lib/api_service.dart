@@ -275,6 +275,41 @@ class ApiService {
     }) as Map<String, dynamic>;
   }
 
+  // ── Interactive Drama ─────────────────────────────────
+
+  Future<Map<String, dynamic>> interactiveCreate(String prompt) async {
+    return await _send('POST', '/api/interactive/create',
+        {'prompt': prompt}) as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> interactiveList() async {
+    final res = await _send('GET', '/api/interactive/list');
+    if (res is Map) return res['list'] ?? [];
+    return res is List ? res : [];
+  }
+
+  Future<Map<String, dynamic>> interactiveGet(String appId) async {
+    return await _send('GET', '/api/interactive/$appId') as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> interactiveChoice(String appId, String choice) async {
+    return await _send('POST', '/api/interactive/$appId/choice',
+        {'choice': choice}) as Map<String, dynamic>;
+  }
+
+  // ── Video ─────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> videoCreate(String name, String description) async {
+    return await _send('POST', '/api/video/create',
+        {'name': name, 'description': description}) as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> videoList() async {
+    final res = await _send('GET', '/api/video/list');
+    if (res is Map) return res['list'] ?? [];
+    return res is List ? res : [];
+  }
+
   // kept for logout compat
   Future<dynamic> _post(String path, [Map<String, dynamic>? data]) {
     return _send('POST', path, data);

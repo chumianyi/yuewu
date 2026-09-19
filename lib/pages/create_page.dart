@@ -4,6 +4,8 @@ import '../api_service.dart';
 import 'create_character_page.dart';
 import 'create_story_page.dart';
 import 'ai_assist_dialog.dart';
+import 'interactive_page.dart';
+import 'video_page.dart';
 
 const Color _kPrimary = Color(0xFFFFB6C1);
 const Color _kBg = Color(0xFFFFF0F5);
@@ -15,7 +17,7 @@ class CreatePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 5,
       child: Scaffold(
         backgroundColor: _kBg,
         appBar: AppBar(
@@ -26,16 +28,19 @@ class CreatePage extends StatelessWidget {
             onPressed: () => Navigator.pop(context),
           ),
           bottom: const TabBar(
+            isScrollable: true,
             labelColor: Color(0xFFFFB6C1),
             unselectedLabelColor: Color(0xFF9E9E9E),
             indicatorColor: _kPrimary,
             indicatorWeight: 3,
-            labelStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            unselectedLabelStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
+            labelStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            unselectedLabelStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.normal),
             tabs: [
               Tab(text: '捏形象'),
               Tab(text: '角色'),
               Tab(text: '故事'),
+              Tab(text: '互动剧'),
+              Tab(text: '视频'),
             ],
           ),
         ),
@@ -43,6 +48,8 @@ class CreatePage extends StatelessWidget {
           _PortraitTab(),
           _CharacterTab(),
           _StoryTab(),
+          InteractivePage(),
+          VideoPage(),
         ]),
       ),
     );
