@@ -218,14 +218,6 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> _stopRecording() async {
     // Recording disabled
   }
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('语音识别失败')));
-      }
-    }
-  }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
