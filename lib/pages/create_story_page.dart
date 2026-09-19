@@ -150,7 +150,7 @@ class _CreateStoryPageState extends State<CreateStoryPage> {
         final prompt =
             'story cover illustration, ${_nameCtrl.text}, ${_contentCtrl.text}';
         final r = await ApiService().generatePortrait(prompt);
-        _coverPath = (r['url'] ?? r['path'] ?? r['image'] ?? '').toString();
+        _coverPath = (r['imageUrl'] ?? r['url'] ?? r['path'] ?? r['image'] ?? '').toString();
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

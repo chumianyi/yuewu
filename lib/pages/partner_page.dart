@@ -49,8 +49,7 @@ class _PartnerPageState extends State<PartnerPage> {
           : int.tryParse('${_partner['characterId'] ?? _partner['id'] ?? ''}');
 
   String _portraitUrl(String? path) {
-    if (path == null || path.isEmpty) return '';
-    return path.startsWith('http') ? path : '${_api.baseUrl}$path';
+    return _api.imageUrl(path);
   }
 
   void _openChat() {

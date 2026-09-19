@@ -85,7 +85,7 @@ class _CreateCharacterPageState extends State<CreateCharacterPage> {
     setState(() => _generatingPortrait = true);
     try {
       final r = await ApiService().generatePortrait(prompt);
-      final path = (r['url'] ?? r['path'] ?? r['image'] ?? '').toString();
+      final path = (r['imageUrl'] ?? r['url'] ?? r['path'] ?? r['image'] ?? '').toString();
       setState(() => _portraitPath = path);
     } catch (e) {
       if (mounted) {
@@ -175,11 +175,20 @@ class _CreateCharacterPageState extends State<CreateCharacterPage> {
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(16),
                                 child: Image.network(
-                                  ApiService().baseUrl + _portraitPath!,
+                                  ApiService().imageUrl(_portraitPath),
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => const Center(
-                                    child: Icon(Icons.broken_image,
-                                        color: Colors.grey, size: 48),
+                                  errorBuilder: (_, __, ___) => Container(
+                                    decoration: const BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [Color(0xFFFFB6C1), Color(0xFFFFF0F5)],
+                                      ),
+                                    ),
+                                    child: const Center(
+                                      child: Icon(Icons.person,
+                                          color: Colors.white54, size: 48),
+                                    ),
                                   ),
                                 ),
                               )

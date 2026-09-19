@@ -119,26 +119,29 @@ class _ChatPageState extends State<ChatPage> {
     _scrollToBottom();
 
     try {
-      final stream = _api.chatStream(
+      final res = await _api.chat(
         _modelForMode,
         _messages.sublist(0, _messages.length - 1).map((m) => Map<String, String>.from(m)).toList(),
         widget.characterId,
         widget.storyId,
       );
 
-      final buffer = StringBuffer();
-      await for (final chunk in stream) {
-        buffer.write(chunk);
-        if (mounted) {
-          setState(() {
-            _messages.last['content'] = buffer.toString();
-          });
-          _scrollToBottom();
-        }
+      final reply = (res['reply'] ?? res['content'] ?? '').toString();
+      if (mounted) {
+        setState(() {
+          _messages.last['content'] = reply;
+        });
+      }
+      _scrollToBottom();
+
+      // 后端返回的休息提醒
+      final breakReminder = res['break_reminder'];
+      if (breakReminder != null && breakReminder.toString().isNotEmpty) {
+        _showBreakReminder(breakReminder.toString());
       }
 
       // 检测剧情模式选项
-      _parseStoryChoices(buffer.toString());
+      _parseStoryChoices(reply);
 
       // 自动保存
       _autoSave();
@@ -231,6 +234,25 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
+  void _showBreakReminder(String message) {
+    if (_restShowed) return;
+    _restShowed = true;
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (_) => AlertDialog(
+        title: const Text('温馨提示'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showRestDialogIfNeeded() {
     if (_restShowed) return;
     final hour = DateTime.now().hour;
@@ -255,16 +277,16 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    final portrait = _characterDetail?['portrait'] as String?;
+    final portrait = _api.imageUrl(_characterDetail?['portrait'] as String?);
 
     return Scaffold(
       body: Stack(
         children: [
           // 全屏立绘背景
-          if (portrait != null && portrait.isNotEmpty)
+          if (portrait.isNotEmpty)
             Positioned.fill(
               child: Image.network(
-                portrait.startsWith('http') ? portrait : '${_api.baseUrl}$portrait',
+                portrait,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
                   decoration: const BoxDecoration(

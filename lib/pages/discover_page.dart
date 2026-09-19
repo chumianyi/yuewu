@@ -24,7 +24,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
       final res = await _api.getCharacters(1, 50);
       if (mounted) {
         setState(() {
-          _characters = res['data'] ?? res['characters'] ?? [];
+          _characters = res['list'] ?? res['data'] ?? res['characters'] ?? [];
           _loading = false;
         });
       }
@@ -82,7 +82,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
             children: [
               if (portrait != null && portrait.isNotEmpty)
                 Image.network(
-                  portrait.startsWith('http') ? portrait : '${_api.baseUrl}$portrait',
+                  _api.imageUrl(portrait),
                   fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => _placeholder(),
                 )

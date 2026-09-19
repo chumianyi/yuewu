@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
@@ -11,6 +11,9 @@ class ApiService {
   final String baseUrl = "http://103.236.99.177:24512";
   String? _token;
   SharedPreferences? _prefs;
+
+  /// Global navigator key used to redirect to login when token expires.
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
   String? get token => _token;
   bool get isLoggedIn => _token != null && _token!.isNotEmpty;
@@ -34,60 +37,54 @@ class ApiService {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
-    if (_token != null) {
+    if (_token != null && _token!.isNotEmpty) {
       h['Authorization'] = 'Bearer $_token';
     }
     return h;
   }
 
-  Future<dynamic> _get(String path) async {
-    final uri = Uri.parse('$baseUrl$path');
-    final client = HttpClient();
-    try {
-      final request = await client.getUrl(uri);
-      _headers.forEach((k, v) => request.headers.set(k, v));
-      final response = await request.close();
-      final body = await response.transform(utf8.decoder).join();
-      if (response.statusCode >= 400) {
-        throw ApiException(response.statusCode, body);
-      }
-      return jsonDecode(body);
-    } finally {
-      client.close();
+  /// Build a full image URL from a backend-provided path.
+  /// Backend returns e.g. "/static/portraits/xxx.png" → baseUrl + path.
+  String imageUrl(String? path) {
+    if (path == null || path.isEmpty) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    if (path.startsWith('/')) return '$baseUrl$path';
+    return '$baseUrl/$path';
+  }
+
+  void _redirectToLogin() {
+    final ctx = navigatorKey.currentContext;
+    if (ctx != null) {
+      Navigator.of(ctx).pushNamedAndRemoveUntil('/login', (r) => false);
     }
   }
 
-  Future<dynamic> _post(String path, [Map<String, dynamic>? data]) async {
+  Future<dynamic> _send(String method, String path,
+      [Map<String, dynamic>? data]) async {
     final uri = Uri.parse('$baseUrl$path');
     final client = HttpClient();
     try {
-      final request = await client.postUrl(uri);
+      final request = switch (method) {
+        'POST' => await client.postUrl(uri),
+        'PUT' => await client.putUrl(uri),
+        'DELETE' => await client.deleteUrl(uri),
+        _ => await client.getUrl(uri),
+      };
       _headers.forEach((k, v) => request.headers.set(k, v));
       if (data != null) {
         request.write(jsonEncode(data));
       }
       final response = await request.close();
       final body = await response.transform(utf8.decoder).join();
+      if (response.statusCode == 401) {
+        await _saveToken(null);
+        _redirectToLogin();
+        throw ApiException(401, body);
+      }
       if (response.statusCode >= 400) {
         throw ApiException(response.statusCode, body);
       }
-      return jsonDecode(body);
-    } finally {
-      client.close();
-    }
-  }
-
-  Future<dynamic> _delete(String path) async {
-    final uri = Uri.parse('$baseUrl$path');
-    final client = HttpClient();
-    try {
-      final request = await client.deleteUrl(uri);
-      _headers.forEach((k, v) => request.headers.set(k, v));
-      final response = await request.close();
-      final body = await response.transform(utf8.decoder).join();
-      if (response.statusCode >= 400) {
-        throw ApiException(response.statusCode, body);
-      }
+      if (body.isEmpty) return {};
       return jsonDecode(body);
     } finally {
       client.close();
@@ -97,20 +94,23 @@ class ApiService {
   // ── Auth ──────────────────────────────────────────────
 
   Future<Map<String, dynamic>> register(String username, String password) async {
-    final res = await _post('/api/auth/register', {
+    final res = await _send('POST', '/api/auth/register', {
       'username': username,
       'password': password,
-    });
+    }) as Map<String, dynamic>;
+    if (res['token'] != null) {
+      await _saveToken(res['token'].toString());
+    }
     return res;
   }
 
   Future<Map<String, dynamic>> login(String username, String password) async {
-    final res = await _post('/api/auth/login', {
+    final res = await _send('POST', '/api/auth/login', {
       'username': username,
       'password': password,
-    });
+    }) as Map<String, dynamic>;
     if (res['token'] != null) {
-      await _saveToken(res['token']);
+      await _saveToken(res['token'].toString());
     }
     return res;
   }
@@ -123,118 +123,78 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> getMe() async {
-    return await _get('/api/auth/me');
+    return await _send('GET', '/api/auth/me') as Map<String, dynamic>;
   }
 
   // ── Characters ────────────────────────────────────────
 
   Future<Map<String, dynamic>> getCharacters(int page, int pageSize) async {
-    return await _get('/api/characters?page=$page&pageSize=$pageSize');
+    return await _send('GET', '/api/characters?page=$page&pageSize=$pageSize')
+        as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> getCharacterDetail(int id) async {
-    return await _get('/api/characters/$id');
+    return await _send('GET', '/api/characters/$id') as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> createCharacter(Map<String, dynamic> data) async {
-    return await _post('/api/characters', data);
+    return await _send('POST', '/api/characters', data) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> likeCharacter(int id) async {
-    return await _post('/api/characters/$id/like');
+    return await _send('POST', '/api/characters/$id/like') as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> reportCharacter(int id, String reason) async {
-    return await _post('/api/characters/$id/report', {'reason': reason});
+    return await _send('POST', '/api/characters/$id/report',
+        {'reason': reason}) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> commentCharacter(int id, String content) async {
-    return await _post('/api/characters/$id/comments', {'content': content});
+    return await _send('POST', '/api/characters/$id/comment',
+        {'content': content}) as Map<String, dynamic>;
   }
 
   Future<List<dynamic>> getCharacterComments(int id) async {
-    final res = await _get('/api/characters/$id/comments');
+    final res = await _send('GET', '/api/characters/$id/comments');
     if (res is List) return res;
-    return res['data'] ?? res['comments'] ?? [];
+    if (res is Map) return res['list'] ?? res['data'] ?? res['comments'] ?? [];
+    return [];
   }
 
   Future<List<dynamic>> getMyCharacters() async {
-    final res = await _get('/api/characters/my');
+    final res = await _send('GET', '/api/my/characters');
     if (res is List) return res;
-    return res['data'] ?? res['characters'] ?? [];
+    if (res is Map) return res['list'] ?? res['data'] ?? res['characters'] ?? [];
+    return [];
   }
 
   Future<List<dynamic>> getMyStories() async {
-    final res = await _get('/api/stories/my');
+    final res = await _send('GET', '/api/my/stories');
     if (res is List) return res;
-    return res['data'] ?? res['stories'] ?? [];
+    if (res is Map) return res['list'] ?? res['data'] ?? res['stories'] ?? [];
+    return [];
   }
 
   Future<Map<String, dynamic>> createStory(Map<String, dynamic> data) async {
-    final res = await _post('/api/stories', data);
-    return res as Map<String, dynamic>;
+    return await _send('POST', '/api/stories', data) as Map<String, dynamic>;
   }
 
   // ── Chat ──────────────────────────────────────────────
 
-  /// 非流式对话，model 支持 "extreme"（极致模式）
+  /// 非流式对话 → {reply, totalSeconds, break_reminder}
   Future<Map<String, dynamic>> chat(
     String model,
     List<Map<String, String>> messages,
     int? characterId,
     int? storyId,
   ) async {
-    return await _post('/api/chat', {
+    return await _send('POST', '/api/chat', {
       'model': model,
       'messages': messages,
       if (characterId != null) 'characterId': characterId,
       if (storyId != null) 'storyId': storyId,
-    });
-  }
-
-  /// SSE 流式对话，逐字返回内容片段
-  Stream<String> chatStream(
-    String model,
-    List<Map<String, String>> messages,
-    int? characterId,
-    int? storyId,
-  ) async* {
-    final uri = Uri.parse('$baseUrl/api/chat/stream');
-    final client = HttpClient();
-    try {
-      final request = await client.postUrl(uri);
-      _headers.forEach((k, v) => request.headers.set(k, v));
-      request.headers.set('Accept', 'text/event-stream');
-      request.write(jsonEncode({
-        'model': model,
-        'messages': messages,
-        if (characterId != null) 'characterId': characterId,
-        if (storyId != null) 'storyId': storyId,
-      }));
-      final response = await request.close();
-      if (response.statusCode >= 400) {
-        final body = await response.transform(utf8.decoder).join();
-        throw ApiException(response.statusCode, body);
-      }
-      final lines = response.transform(utf8.decoder).transform(const LineSplitter());
-      await for (final line in lines) {
-        if (line.startsWith('data: ')) {
-          final payload = line.substring(6).trim();
-          if (payload == '[DONE]') break;
-          try {
-            final json = jsonDecode(payload);
-            final delta = json['content'] ?? json['delta'] ?? json['text'];
-            if (delta != null && delta.toString().isNotEmpty) {
-              yield delta.toString();
-            }
-          } catch (_) {
-            // 跳过非 JSON 行
-          }
-        }
-      }
-    } finally {
-      client.close();
-    }
+    }) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> saveChat(
@@ -243,83 +203,68 @@ class ApiService {
     List<Map<String, String>> messages,
     String model,
   ) async {
-    return await _post('/api/chat/save', {
+    return await _send('POST', '/api/chat/save', {
       'characterId': characterId,
       if (storyId != null) 'storyId': storyId,
       'messages': messages,
       'model': model,
-    });
+    }) as Map<String, dynamic>;
   }
 
   Future<List<dynamic>> getChatHistory(int characterId, int? storyId) async {
     final qs = storyId != null ? '&storyId=$storyId' : '';
-    final res = await _get('/api/chat/history?characterId=$characterId$qs');
+    final res = await _send('GET', '/api/chat/history?characterId=$characterId$qs');
     if (res is List) return res;
-    return res['data'] ?? res['messages'] ?? [];
+    if (res is Map) return res['messages'] ?? res['list'] ?? res['data'] ?? [];
+    return [];
   }
 
   // ── Portrait / Partner / Usage ───────────────────────
 
+  /// 生成立绘 → {imageUrl: "/static/portraits/xxx.png"}
   Future<Map<String, dynamic>> generatePortrait(String prompt) async {
-    return await _post('/api/portrait/generate', {'prompt': prompt});
+    final res = await _send('POST', '/api/generate-portrait',
+        {'prompt': prompt}) as Map<String, dynamic>;
+    return res;
   }
 
   Future<Map<String, dynamic>> getPartner() async {
-    return await _get('/api/partner');
+    return await _send('GET', '/api/partner') as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> updatePartner(int characterId) async {
-    return await _post('/api/partner', {'characterId': characterId});
+    return await _send('PUT', '/api/partner',
+        {'characterId': characterId}) as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> getUsage() async {
-    return await _get('/api/usage');
+    return await _send('GET', '/api/usage') as Map<String, dynamic>;
   }
 
   Future<Map<String, dynamic>> sendFeedback(String content) async {
-    return await _post('/api/feedback', {'content': content});
+    return await _send('POST', '/api/feedback',
+        {'content': content}) as Map<String, dynamic>;
   }
 
-  // ── TTS / ASR ────────────────────────────────────────
+  // ── TTS ──────────────────────────────────────────────
 
-  /// 文字转语音，返回音频 URL
   Future<Map<String, dynamic>> tts(String text, String voice) async {
-    return await _post('/api/tts', {'text': text, 'voice': voice});
-  }
-
-  /// 语音识别，上传音频文件，返回识别文字
-  Future<Map<String, dynamic>> asr(File audioFile) async {
-    final uri = Uri.parse('$baseUrl/api/asr');
-    final request = await HttpClient().postUrl(uri);
-    // 不设 Content-Type，让 HttpClient 自动处理 multipart
-    request.headers.set('Accept', 'application/json');
-    if (_token != null) {
-      request.headers.set('Authorization', 'Bearer $_token');
-    }
-    final boundary = '----YueWuBoundary${DateTime.now().millisecondsSinceEpoch}';
-    request.headers.set('Content-Type', 'multipart/form-data; boundary=$boundary');
-
-    final length = await audioFile.length();
-    final bytes = await audioFile.readAsBytes();
-    request
-      ..write('--$boundary\r\n')
-      ..write('Content-Disposition: form-data; name="audio"; filename="audio.m4a"\r\n')
-      ..write('Content-Type: audio/m4a\r\n\r\n')
-      ..add(bytes)
-      ..write('\r\n--$boundary--\r\n');
-
-    final response = await request.close();
-    final body = await response.transform(utf8.decoder).join();
-    if (response.statusCode >= 400) {
-      throw ApiException(response.statusCode, body);
-    }
-    return jsonDecode(body);
+    return await _send('POST', '/api/tts',
+        {'text': text, 'voice': voice}) as Map<String, dynamic>;
   }
 
   // ── Story ─────────────────────────────────────────────
 
   Future<Map<String, dynamic>> storyChoice(int storyId, String choice) async {
-    return await _post('/api/stories/$storyId/choice', {'choice': choice});
+    return await _send('POST', '/api/story/choice', {
+      'storyId': storyId,
+      'choice': choice,
+    }) as Map<String, dynamic>;
+  }
+
+  // kept for logout compat
+  Future<dynamic> _post(String path, [Map<String, dynamic>? data]) {
+    return _send('POST', path, data);
   }
 }
 
@@ -332,8 +277,9 @@ class ApiException implements Exception {
   String toString() {
     try {
       final json = jsonDecode(body);
-      return json['message'] ?? '请求失败 ($statusCode)';
+      return json['message'] ?? json['detail'] ?? '请求失败 ($statusCode)';
     } catch (_) {
+      if (statusCode == 401) return '登录已过期，请重新登录';
       return '请求失败 ($statusCode)';
     }
   }

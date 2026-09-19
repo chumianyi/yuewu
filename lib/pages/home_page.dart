@@ -36,7 +36,7 @@ class _HomePageState extends State<HomePage> {
     try {
       final res = await ApiService().getCharacters(1, 20);
       setState(() {
-        _characters = res['data'] ?? res['characters'] ?? [];
+        _characters = res['list'] ?? res['data'] ?? res['characters'] ?? [];
         _loading = false;
       });
     } catch (e) {
@@ -160,7 +160,7 @@ class _CharacterCard extends StatelessWidget {
           children: [
             if (portrait != null && portrait.isNotEmpty)
               Image.network(
-                portrait.startsWith('http') ? portrait : '${ApiService().baseUrl}$portrait',
+                ApiService().imageUrl(portrait),
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => _buildPlaceholder(),
               )

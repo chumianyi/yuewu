@@ -23,12 +23,16 @@ class _RegisterPageState extends State<RegisterPage> {
     }
     setState(() { _loading = true; _error = null; });
     try {
-      await ApiService().register(_usernameCtrl.text.trim(), _passwordCtrl.text);
+      final res = await ApiService().register(_usernameCtrl.text.trim(), _passwordCtrl.text);
       if (mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('注册成功，请登录')),
-        );
+        if (res['token'] != null) {
+          Navigator.pushNamedAndRemoveUntil(context, '/main', (r) => false);
+        } else {
+          Navigator.pushReplacementNamed(context, '/login');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('注册成功，请登录')),
+          );
+        }
       }
     } catch (e) {
       setState(() => _error = e.toString());

@@ -32,6 +32,7 @@ class YueWuApp extends StatelessWidget {
     return MaterialApp(
       title: '月悟',
       debugShowCheckedModeBanner: false,
+      navigatorKey: ApiService.navigatorKey,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: const ColorScheme(

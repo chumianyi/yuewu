@@ -53,8 +53,7 @@ class _CharacterDetailPageState extends State<CharacterDetailPage> {
   String get _name => (_detail?['name'] ?? '角色').toString();
 
   String _portraitUrl(String? path) {
-    if (path == null || path.isEmpty) return '';
-    return path.startsWith('http') ? path : '${_api.baseUrl}$path';
+    return _api.imageUrl(path);
   }
 
   int get _likes =>

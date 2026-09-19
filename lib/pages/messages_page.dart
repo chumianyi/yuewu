@@ -59,8 +59,7 @@ class _MessagesPageState extends State<MessagesPage> {
   }
 
   String _url(String? path) {
-    if (path == null || path.isEmpty) return '';
-    return path.startsWith('http') ? path : '${_api.baseUrl}$path';
+    return _api.imageUrl(path);
   }
 
   @override
