@@ -170,6 +170,11 @@ class ApiService {
     return res['data'] ?? res['stories'] ?? [];
   }
 
+  Future<Map<String, dynamic>> createStory(Map<String, dynamic> data) async {
+    final res = await _post('/api/stories', data);
+    return res as Map<String, dynamic>;
+  }
+
   // ── Chat ──────────────────────────────────────────────
 
   /// 非流式对话，model 支持 "extreme"（极致模式）

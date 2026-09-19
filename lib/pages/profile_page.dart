@@ -33,8 +33,8 @@ class _ProfilePageState extends State<ProfilePage> {
         _api.getMyStories(),
       ]);
       setState(() {
-        _user = results[0];
-        _usage = results[1];
+        _user = results[0] as Map<String, dynamic>?;
+        _usage = results[1] as Map<String, dynamic>?;
         _myChars = results[2] as List;
         _myStories = results[3] as List;
         _loading = false;
@@ -181,7 +181,7 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           _menuItem(Icons.person_outline, '编辑资料', () => _showEditProfile()),
           _menuItem(Icons.lock_outline, '修改密码', () => _showChangePassword()),
-          _menuItem(Icons.settings_outline, '设置', () => _showSettings()),
+          _menuItem(Icons.settings, '设置', () => _showSettings()),
           _menuItem(Icons.feedback_outlined, '意见反馈', () => _showFeedback()),
           _menuItem(Icons.info_outline, '关于月悟', () => _showAbout()),
           const Divider(height: 1),
