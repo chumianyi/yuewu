@@ -1,7 +1,6 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import '../api.dart';
-import 'chat_page.dart';
+import 'api_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -12,14 +11,15 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final PageController _pageController = PageController();
-  List<dynamic> _chars = [];
+  int _currentPage = 0;
+  List<dynamic> _characters = [];
   bool _loading = true;
-  int _currentIndex = 0;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _loadCharacters();
   }
 
   @override
@@ -28,76 +28,88 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  Future<void> _load() async {
+  Future<void> _loadCharacters() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
-      final r = await Api.getCharacters(limit: 50);
+      final res = await ApiService().getCharacters(1, 20);
       setState(() {
-        _chars = r['list'] ?? [];
+        _characters = res['data'] ?? res['characters'] ?? [];
         _loading = false;
       });
     } catch (e) {
-      setState(() => _loading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('加载失败: $e')),
-        );
-      }
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF0F5),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFFFF69B4)),
-            )
-          : _chars.isEmpty
-              ? _buildEmpty()
-              : _buildPageView(),
+      body: _buildBody(),
     );
   }
 
-  Widget _buildEmpty() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.people_outline, size: 64, color: Colors.pink[200]),
-          const SizedBox(height: 16),
-          Text(
-            '还没有角色',
-            style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '上下滑动浏览角色',
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFFFFB6C1)),
+      );
+    }
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Color(0xFFFFB6C1)),
+            const SizedBox(height: 16),
+            Text(_error!, style: const TextStyle(color: Colors.grey)),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadCharacters,
+              child: const Text('重试'),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_characters.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.people_outline, size: 64, color: Color(0xFFFFB6C1)),
+            SizedBox(height: 16),
+            Text('还没有角色，去创建一个吧', style: TextStyle(fontSize: 16, color: Colors.grey)),
+          ],
+        ),
+      );
+    }
 
-  Widget _buildPageView() {
     return Stack(
       children: [
         PageView.builder(
           controller: _pageController,
           scrollDirection: Axis.vertical,
-          onPageChanged: (i) => setState(() => _currentIndex = i),
-          itemCount: _chars.length,
-          itemBuilder: (ctx, i) => _buildCharacterCard(_chars[i]),
+          onPageChanged: (i) => setState(() => _currentPage = i),
+          itemCount: _characters.length,
+          itemBuilder: (_, i) => _CharacterCard(
+            character: _characters[i],
+            onTap: () => _openChat(_characters[i]),
+          ),
         ),
-        // Page indicator dots
+        // 右侧圆点指示器
         Positioned(
-          right: 12,
-          top: MediaQuery.of(context).padding.top + 20,
+          right: 8,
+          top: MediaQuery.of(context).size.height * 0.4,
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: List.generate(_chars.length, (i) {
-              final active = i == _currentIndex;
+            children: List.generate(_characters.length, (i) {
+              final active = i == _currentPage;
               return AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.symmetric(vertical: 3),
@@ -105,7 +117,7 @@ class _HomePageState extends State<HomePage> {
                 height: active ? 8 : 6,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: active ? const Color(0xFFFF69B4) : Colors.pink[200]?.withOpacity(0.5),
+                  color: active ? const Color(0xFFFFB6C1) : Colors.white54,
                 ),
               );
             }),
@@ -115,132 +127,106 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildCharacterCard(dynamic ch) {
-    final portrait = ch['portrait'];
-    final name = ch['name'] ?? '';
-    final desc = ch['description'] ?? '';
+  void _openChat(Map<String, dynamic> character) {
+    Navigator.pushNamed(
+      context,
+      '/chat',
+      arguments: {
+        'characterId': character['id'],
+        'characterName': character['name'] ?? '',
+      },
+    );
+  }
+}
+
+class _CharacterCard extends StatelessWidget {
+  final Map<String, dynamic> character;
+  final VoidCallback onTap;
+
+  const _CharacterCard({required this.character, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final portrait = character['portrait'] as String?;
+    final name = character['name'] ?? '未知角色';
+    final brief = character['brief'] ?? character['title'] ?? '';
+    final description = character['description'] ?? '';
 
     return GestureDetector(
-      onTap: () => _openChat(ch),
-      child: Container(
-        margin: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top + 16,
-          bottom: MediaQuery.of(context).padding.bottom + 16,
-          left: 16,
-          right: 16,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.pink.withOpacity(0.15),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      onTap: onTap,
+      child: SizedBox.expand(
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            Expanded(
-              flex: 5,
-              child: portrait != null && portrait.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: Api.portraitUrl(portrait),
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                        color: Colors.pink[50],
-                        child: const Center(
-                          child: CircularProgressIndicator(
-                            color: Color(0xFFFF69B4),
-                            strokeWidth: 2,
-                          ),
-                        ),
-                      ),
-                      errorWidget: (_, __, ___) => Container(
-                        color: Colors.pink[100],
-                        child: Center(
-                          child: Text(
-                            name.isNotEmpty ? name[0] : '?',
-                            style: const TextStyle(
-                              fontSize: 72,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    )
-                  : Container(
-                      color: Colors.pink[100],
-                      child: Center(
-                        child: Text(
-                          name.isNotEmpty ? name[0] : '?',
-                          style: const TextStyle(
-                            fontSize: 72,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
+            // 背景：立绘或粉色渐变占位
+            if (portrait != null && portrait.isNotEmpty)
+              Image.network(
+                portrait.startsWith('http') ? portrait : '${ApiService().baseUrl}$portrait',
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _buildPlaceholder(),
+              )
+            else
+              _buildPlaceholder(),
+
+            // 底部渐变遮罩
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.1),
+                    Colors.black.withValues(alpha: 0.6),
+                  ],
+                  stops: const [0.5, 0.75, 1.0],
+                ),
+              ),
             ),
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            name,
-                            style: const TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ),
-                        if (ch['category'] != null && ch['category'].isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFF0F5),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              ch['category'],
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFFE91E63),
-                              ),
-                            ),
-                          ),
-                      ],
+
+            // 文字信息
+            Positioned(
+              left: 24,
+              right: 80,
+              bottom: 80,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: [Shadow(blurRadius: 8, color: Colors.black54)],
                     ),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: Text(
-                          desc,
-                          style: TextStyle(
-                            fontSize: 15,
-                            height: 1.5,
-                            color: Colors.grey[700],
-                          ),
-                          maxLines: 4,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                  ),
+                  if (brief.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      brief,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.white70,
+                        shadows: [Shadow(blurRadius: 6, color: Colors.black54)],
                       ),
                     ),
                   ],
-                ),
+                  if (description.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      description,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.white60,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
@@ -249,17 +235,17 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _openChat(dynamic ch) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ChatPage(
-          title: ch['name'] ?? '聊天',
-          characterName: ch['name'] ?? '',
-          portrait: ch['portrait'],
-          characterId: ch['id']?.toString(),
-          greeting: ch['greeting'],
+  Widget _buildPlaceholder() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFFB6C1), Color(0xFFFFC0CB), Color(0xFFFFF0F5)],
         ),
+      ),
+      child: const Center(
+        child: Icon(Icons.person, size: 120, color: Colors.white38),
       ),
     );
   }

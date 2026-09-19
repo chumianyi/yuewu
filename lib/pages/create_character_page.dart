@@ -1,91 +1,92 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import '../api.dart';
+import '../core/api_service.dart';
+
+const Color _kPrimary = Color(0xFFFFB6C1);
+const Color _kBg = Color(0xFFFFF0F5);
+const Color _kCard = Colors.white;
 
 class CreateCharacterPage extends StatefulWidget {
-  const CreateCharacterPage({super.key});
+  final String prefill;
+  const CreateCharacterPage({super.key, this.prefill = ''});
 
   @override
   State<CreateCharacterPage> createState() => _CreateCharacterPageState();
 }
 
 class _CreateCharacterPageState extends State<CreateCharacterPage> {
-  final String _baseUrl = 'http://103.236.99.177:24512';
+  final _nameCtrl = TextEditingController();
+  final _settingCtrl = TextEditingController();
+  final _greetingCtrl = TextEditingController();
+  final _bioCtrl = TextEditingController();
 
-  final Color primaryPink = const Color(0xFFFFB6C1);
-  final Color bgPink = const Color(0xFFFFF0F5);
-  final Color accentPink = const Color(0xFFFF69B4);
+  String? _portraitPath;
+  bool _generatingPortrait = false;
+  bool _publishing = false;
 
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _settingController = TextEditingController();
-  final TextEditingController _openingController = TextEditingController();
-  final TextEditingController _bioController = TextEditingController();
+  @override
+  void initState() {
+    super.initState();
+    if (widget.prefill.isNotEmpty) _settingCtrl.text = widget.prefill;
+  }
 
-  String? _portraitImageUrl;
-  bool _isGenerating = false;
-  bool _isPublishing = false;
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _settingCtrl.dispose();
+    _greetingCtrl.dispose();
+    _bioCtrl.dispose();
+    super.dispose();
+  }
 
-  Future<void> _showGeneratePortraitDialog() async {
-    final promptController = TextEditingController();
+  Future<void> _showPortraitDialog() async {
+    final descCtrl = TextEditingController();
     final result = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        title: Text(
-          '创建形象',
-          style: TextStyle(color: accentPink, fontWeight: FontWeight.bold),
-        ),
+      builder: (_) => AlertDialog(
+        backgroundColor: _kCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('创建形象',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         content: TextField(
-          controller: promptController,
-          maxLines: 3,
+          controller: descCtrl,
+          maxLines: 4,
+          autofocus: true,
           decoration: const InputDecoration(
-            hintText: '描述你想要的角色形象...',
-            border: OutlineInputBorder(),
+            hintText: '描述你想要的角色形象，如：银色长发，红色眼眸，穿黑色哥特裙',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+            child: const Text('取消', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: accentPink),
-            onPressed: () => Navigator.pop(context, promptController.text),
-            child: const Text('生成', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _kPrimary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+            ),
+            onPressed: () => Navigator.pop(context, descCtrl.text.trim()),
+            child: const Text('生成'),
           ),
         ],
       ),
     );
 
-    if (result != null && result.isNotEmpty) {
-      await _generatePortrait(result);
-    }
+    if (result == null || result.isEmpty) return;
+    await _generatePortrait(result);
   }
 
   Future<void> _generatePortrait(String prompt) async {
-    setState(() => _isGenerating = true);
+    setState(() => _generatingPortrait = true);
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/generate-portrait'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'prompt': prompt}),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final imagePath = data['imageUrl'] as String;
-        setState(() {
-          _portraitImageUrl = '$_baseUrl$imagePath';
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('形象生成成功！')),
-          );
-        }
-      } else {
-        throw Exception('生成失败: ${response.statusCode}');
-      }
+      final r = await ApiService().generatePortrait(prompt);
+      final path = (r['url'] ?? r['path'] ?? r['image'] ?? '').toString();
+      setState(() => _portraitPath = path);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -93,46 +94,32 @@ class _CreateCharacterPageState extends State<CreateCharacterPage> {
         );
       }
     } finally {
-      setState(() => _isGenerating = false);
+      if (mounted) setState(() => _generatingPortrait = false);
     }
   }
 
-  Future<void> _publishCharacter() async {
-    if (_nameController.text.isEmpty) {
+  Future<void> _publish() async {
+    if (_nameCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请输入角色名')),
+        const SnackBar(content: Text('请填写角色名')),
       );
       return;
     }
-
-    setState(() => _isPublishing = true);
+    setState(() => _publishing = true);
     try {
-      final token = await Api.token;
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/characters'),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'name': _nameController.text,
-          'systemPrompt': _settingController.text,
-          'greeting': _openingController.text,
-          'description': _bioController.text,
-          'portrait': _portraitImageUrl,
-          'category': '自定义',
-        }),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('角色发布成功！')),
-          );
-          Navigator.pop(context);
-        }
-      } else {
-        throw Exception('发布失败: ${response.statusCode}');
+      await ApiService().createCharacter({
+        'name': _nameCtrl.text.trim(),
+        'description': _bioCtrl.text.trim(),
+        'greeting': _greetingCtrl.text.trim(),
+        'systemPrompt': _settingCtrl.text.trim(),
+        'portrait': _portraitPath ?? '',
+        'category': '创作',
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('发布成功')),
+        );
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
@@ -141,186 +128,176 @@ class _CreateCharacterPageState extends State<CreateCharacterPage> {
         );
       }
     } finally {
-      setState(() => _isPublishing = false);
+      if (mounted) setState(() => _publishing = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgPink,
+      backgroundColor: _kBg,
       appBar: AppBar(
-        backgroundColor: bgPink,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: accentPink),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF4A4A4A)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          '创建角色',
-          style: TextStyle(
-            color: accentPink,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        title: const Text('创建角色',
+            style: TextStyle(color: Color(0xFF4A4A4A), fontSize: 18)),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildPortraitSection(),
-            const SizedBox(height: 24),
-            _buildLabel('角色名'),
-            const SizedBox(height: 8),
-            _buildTextField(
-              controller: _nameController,
-              hint: '给你的角色起个名字',
-            ),
-            const SizedBox(height: 20),
-            _buildLabel('角色设定（系统提示词）'),
-            const SizedBox(height: 8),
-            _buildTextField(
-              controller: _settingController,
-              hint: '描述角色的性格、背景、说话方式...',
-              maxLines: 6,
-            ),
-            const SizedBox(height: 20),
-            _buildLabel('开场白'),
-            const SizedBox(height: 8),
-            _buildTextField(
-              controller: _openingController,
-              hint: '角色第一次会对你说什么？',
-              maxLines: 4,
-            ),
-            const SizedBox(height: 20),
-            _buildLabel('角色简介（选填）'),
-            const SizedBox(height: 8),
-            _buildTextField(
-              controller: _bioController,
-              hint: '简单介绍一下这个角色',
-              maxLines: 3,
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              height: 54,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(27),
-                  ),
-                ),
-                onPressed: _isPublishing ? null : _publishCharacter,
-                child: _isPublishing
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        '发布',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPortraitSection() {
-    return Center(
-      child: GestureDetector(
-        onTap: _showGeneratePortraitDialog,
-        child: Container(
-          width: 140,
-          height: 180,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: primaryPink, width: 2),
-          ),
-          child: _isGenerating
-              ? const Center(child: CircularProgressIndicator())
-              : _portraitImageUrl != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: Image.network(
-                        _portraitImageUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.broken_image,
-                                size: 40, color: Colors.grey[400]),
-                            const SizedBox(height: 8),
-                            Text('加载失败',
-                                style: TextStyle(color: Colors.grey[500])),
-                          ],
-                        ),
-                      ),
-                    )
-                  : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.add_photo_alternate_outlined,
-                            size: 40, color: accentPink),
-                        const SizedBox(height: 8),
-                        Text(
-                          '+ 创建形象',
-                          style: TextStyle(
-                            color: accentPink,
-                            fontWeight: FontWeight.w500,
-                          ),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                // + 创建形象
+                GestureDetector(
+                  onTap: _generatingPortrait ? null : _showPortraitDialog,
+                  child: Container(
+                    height: 200,
+                    decoration: BoxDecoration(
+                      color: _kCard,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _kPrimary.withValues(alpha: 0.08),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: 15,
-        fontWeight: FontWeight.w600,
-        color: Colors.grey[700],
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hint,
-    int maxLines = 1,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.pink.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+                    child: _generatingPortrait
+                        ? const Center(
+                            child: CircularProgressIndicator(color: _kPrimary))
+                        : _portraitPath != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: Image.network(
+                                  ApiService().baseUrl + _portraitPath!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Center(
+                                    child: Icon(Icons.broken_image,
+                                        color: Colors.grey, size: 48),
+                                  ),
+                                ),
+                              )
+                            : const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.add_a_photo,
+                                      size: 40, color: _kPrimary),
+                                  SizedBox(height: 8),
+                                  Text('+ 创建形象',
+                                      style: TextStyle(
+                                          color: _kPrimary, fontSize: 16)),
+                                ],
+                              ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // 角色名
+                const Text('角色名',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _nameCtrl,
+                  decoration: InputDecoration(
+                    hintText: '请填写角色名称',
+                    filled: true,
+                    fillColor: _kCard,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // 角色设定
+                const Text('角色设定',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _settingCtrl,
+                  maxLines: 6,
+                  decoration: InputDecoration(
+                    hintText:
+                        '角色的性格、身份、说话风格、跟用户的关系等\n请用"用户"来称呼与角色对话的人',
+                    filled: true,
+                    fillColor: _kCard,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // 开场白
+                const Text('开场白',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _greetingCtrl,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText: '作为角色说的第一句话。可使用（）描述动作或场景',
+                    filled: true,
+                    fillColor: _kCard,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // 角色简介
+                const Text('角色简介（选填）',
+                    style:
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _bioCtrl,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: '一句话介绍这个角色',
+                    filled: true,
+                    fillColor: _kCard,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // 黄色发布按钮
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFD54F),
+                  foregroundColor: Colors.black87,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(28)),
+                ),
+                onPressed: _publishing ? null : _publish,
+                child: _publishing
+                    ? const CircularProgressIndicator()
+                    : const Text('发布',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+            ),
           ),
         ],
-      ),
-      child: TextField(
-        controller: controller,
-        maxLines: maxLines,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.all(16),
-        ),
       ),
     );
   }

@@ -1,8 +1,5 @@
-import 'dart:convert';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import '../api.dart';
+import 'api_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,223 +9,173 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final String _baseUrl = 'http://103.236.99.177:24512';
-
-  final Color primaryPink = const Color(0xFFFFB6C1);
-  final Color bgPink = const Color(0xFFFFF0F5);
-  final Color accentPink = const Color(0xFFFF69B4);
-
-  final TextEditingController _accountController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  final ApiService _api = ApiService();
+  final _usernameCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  final _pink = const Color(0xFFFFB6C1);
 
   bool _isLogin = true;
-  bool _isLoading = false;
-  bool _obscurePassword = true;
+  bool _loading = false;
+  bool _obscure = true;
+  String? _error;
+
+  @override
+  void dispose() {
+    _usernameCtrl.dispose();
+    _passwordCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _submit() async {
-    if (_accountController.text.isEmpty || _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请输入账号和密码')),
-      );
+    final u = _usernameCtrl.text.trim();
+    final p = _passwordCtrl.text;
+    if (u.isEmpty || p.isEmpty) {
+      setState(() => _error = '请输入账号和密码');
       return;
     }
-
-    setState(() => _isLoading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
-      final endpoint = _isLogin ? '/api/auth/login' : '/api/auth/register';
-      final response = await http.post(
-        Uri.parse('$_baseUrl$endpoint'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'username': _accountController.text,
-          'password': _passwordController.text,
-        }),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        if (data['token'] != null) {
-          await Api.setToken(data['token']);
-        }
+      if (_isLogin) {
+        await _api.login(u, p);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(_isLogin ? '登录成功' : '注册成功')),
-          );
-          Navigator.pop(context, _accountController.text);
+          Navigator.pushNamedAndRemoveUntil(context, '/main', (_) => false);
         }
       } else {
-        throw Exception('请求失败: ${response.statusCode}');
+        final res = await _api.register(u, p);
+        if (mounted) {
+          if (res['token'] != null) {
+            Navigator.pushNamedAndRemoveUntil(context, '/main', (_) => false);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('注册成功，请登录')),
+            );
+            setState(() => _isLogin = true);
+          }
+        }
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${_isLogin ? '登录' : '注册'}失败: $e')),
-        );
-      }
+      setState(() => _error = e.toString());
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgPink,
-      appBar: AppBar(
-        backgroundColor: bgPink,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.close, color: Colors.grey[600]),
-          onPressed: () => Navigator.pop(context, false),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFFFC0CB), Color(0xFFFFF0F5)],
+          ),
         ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 20),
-            Center(
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: primaryPink.withOpacity(0.3),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.auto_awesome,
-                  size: 40,
-                  color: accentPink,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Center(
-              child: Text(
-                '月悟',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: accentPink,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Center(
-              child: Text(
-                _isLogin ? '登录你的账号' : '创建新账号',
-                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-              ),
-            ),
-            const SizedBox(height: 40),
-            _buildInputField(
-              controller: _accountController,
-              hint: '账号',
-              icon: Icons.person_outline,
-            ),
-            const SizedBox(height: 16),
-            _buildInputField(
-              controller: _passwordController,
-              hint: '密码',
-              icon: Icons.lock_outline,
-              isPassword: true,
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
-              height: 54,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: accentPink,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(27),
-                  ),
-                ),
-                onPressed: _isLoading ? null : _submit,
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(
-                        _isLogin ? '登录' : '注册',
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Center(
-              child: GestureDetector(
-                onTap: () {
-                  setState(() => _isLogin = !_isLogin);
-                },
-                child: RichText(
-                  text: TextSpan(
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    children: [
-                      TextSpan(text: _isLogin ? '还没有账号？' : '已有账号？'),
-                      TextSpan(
-                        text: _isLogin ? ' 立即注册' : ' 去登录',
-                        style: TextStyle(
-                          color: accentPink,
-                          fontWeight: FontWeight.w600,
-                        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 80),
+                Container(
+                  width: 88,
+                  height: 88,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: _pink.withValues(alpha: 0.35),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
                       ),
                     ],
                   ),
+                  child: const Icon(Icons.auto_awesome, size: 44, color: Color(0xFFFFB6C1)),
                 ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInputField({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    bool isPassword = false,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.pink.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: TextField(
-        controller: controller,
-        obscureText: isPassword && _obscurePassword,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-          prefixIcon: Icon(icon, color: accentPink, size: 22),
-          suffixIcon: isPassword
-              ? IconButton(
-                  icon: Icon(
-                    _obscurePassword
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    color: Colors.grey[400],
-                    size: 22,
+                const SizedBox(height: 24),
+                const Text(
+                  '月悟',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF4A4A4A)),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _isLogin ? '登录你的 AI 伙伴' : '创建新账号',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 48),
+                TextField(
+                  controller: _usernameCtrl,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    hintText: '账号',
+                    prefixIcon: Icon(Icons.person_outline, color: Color(0xFFFFB6C1)),
                   ),
-                  onPressed: () {
-                    setState(() => _obscurePassword = !_obscurePassword);
-                  },
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _passwordCtrl,
+                  obscureText: _obscure,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _submit(),
+                  decoration: InputDecoration(
+                    hintText: '密码',
+                    prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFFFFB6C1)),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () => setState(() => _obscure = !_obscure),
+                    ),
+                  ),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(_error!, style: const TextStyle(color: Color(0xFFD32F2F), fontSize: 13)),
+                ],
+                const SizedBox(height: 28),
+                ElevatedButton(
+                  onPressed: _loading ? null : _submit,
+                  style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                  child: _loading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+                        )
+                      : Text(_isLogin ? '登录' : '注册', style: const TextStyle(fontSize: 16)),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _isLogin ? '还没有账号？' : '已经有账号？',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                    TextButton(
+                      onPressed: _loading
+                          ? null
+                          : () => setState(() {
+                                _isLogin = !_isLogin;
+                                _error = null;
+                              }),
+                      child: Text(
+                        _isLogin ? '立即注册' : '直接登录',
+                        style: const TextStyle(color: Color(0xFFFFB6C1), fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
