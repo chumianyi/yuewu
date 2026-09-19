@@ -146,6 +146,11 @@ class ApiService {
     return await _send('POST', '/api/characters', data) as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> updateCharacter(
+      String id, Map<String, dynamic> data) async {
+    return await _send('PUT', '/api/characters/$id', data) as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>> likeCharacter(String id) async {
     return await _send('POST', '/api/characters/$id/like') as Map<String, dynamic>;
   }
@@ -230,6 +235,15 @@ class ApiService {
     if (res is List) return res;
     if (res is Map) return res['messages'] ?? res['list'] ?? res['data'] ?? [];
     return [];
+  }
+
+  /// 删除对话历史。before 为某条消息内容时，保留该条及之前；不传则全部清空。
+  Future<Map<String, dynamic>> deleteChatHistory(
+      String characterId, String? storyId, String? before) async {
+    var path = '/api/chat/history/$characterId?';
+    if (storyId != null) path += 'storyId=$storyId&';
+    if (before != null) path += 'before=${Uri.encodeComponent(before)}';
+    return await _send('DELETE', path) as Map<String, dynamic>;
   }
 
   // ── Portrait / Partner / Usage ───────────────────────

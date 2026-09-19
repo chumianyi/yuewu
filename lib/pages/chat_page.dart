@@ -420,6 +420,11 @@ class _ChatPageState extends State<ChatPage> {
                 ],
               ),
             ),
+            IconButton(
+              tooltip: '从头开始',
+              icon: const Icon(Icons.refresh, color: Colors.white),
+              onPressed: _clearAll,
+            ),
             // 模式切换
             Container(
               decoration: BoxDecoration(
@@ -488,8 +493,90 @@ class _ChatPageState extends State<ChatPage> {
       controller: _scrollCtrl,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: _messages.length,
-      itemBuilder: (_, i) => _buildBubble(_messages[i], i),
+      itemBuilder: (_, i) => GestureDetector(
+        onLongPress: () => _showRewindMenu(i),
+        child: _buildBubble(_messages[i], i),
+      ),
     );
+  }
+
+  void _showRewindMenu(int index) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.history, color: Color(0xFFFFB6C1)),
+              title: const Text('回溯到此'),
+              subtitle: const Text('删除这条消息之后的所有对话'),
+              onTap: () {
+                Navigator.pop(context);
+                _rewindTo(index);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _rewindTo(int index) async {
+    final content = _messages[index]['content'] ?? '';
+    try {
+      await _api.deleteChatHistory(widget.characterId, widget.storyId, content);
+      setState(() {
+        _messages = _messages.sublist(0, index + 1);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('已回溯到此处')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('回溯失败: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _clearAll() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('从头开始'),
+        content: const Text('将清空所有对话记录，确定吗？'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('取消')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('确定')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await _api.deleteChatHistory(widget.characterId, widget.storyId, null);
+      setState(() {
+        _messages.clear();
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('已清空对话')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('清空失败: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildBubble(Map<String, String> msg, int index) {

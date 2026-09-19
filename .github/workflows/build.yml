@@ -46,24 +46,51 @@ jobs:
 
       - name: Configure Signing
         run: |
+          set -x
           cp yuewu.keystore android/app/yuewu.keystore
-          python3 -c "
-          with open('android/app/build.gradle','r') as f: g=f.read()
-          signing = '''    signingConfigs {
-        release {
-            storeFile file(\"yuewu.keystore\")
-            storePassword \"yuewu2024\"
-            keyAlias \"yuewu\"
-            keyPassword \"yuewu2024\"
-        }
-    }
-'''
-          if 'signingConfigs' not in g:
-              g = g.replace('    buildTypes {', signing + '    buildTypes {', 1)
-          g = g.replace('signingConfig signingConfigs.debug', 'signingConfig signingConfigs.release')
-          with open('android/app/build.gradle','w') as f: f.write(g)
-          print(open('android/app/build.gradle').read())
-          "
+          ls -la android/app/yuewu.keystore
+          cat > /tmp/sign.py << 'PYEOF'
+import os, re
+base = 'android/app'
+for fn in ['build.gradle', 'build.gradle.kts']:
+    p = os.path.join(base, fn)
+    if not os.path.exists(p):
+        continue
+    g = open(p).read()
+    if fn.endswith('.kts'):
+        sig = ('    signingConfigs {\n'
+               '      create("release") {\n'
+               '        storeFile = file("yuewu.keystore")\n'
+               '        storePassword = "yuewu2024"\n'
+               '        keyAlias = "yuewu"\n'
+               '        keyPassword = "yuewu2024"\n'
+               '      }\n'
+               '    }\n')
+        if 'signingConfigs' not in g:
+            g = g.replace('buildTypes {', sig + 'buildTypes {', 1)
+        g = g.replace('signingConfig = signingConfigs.getByName("debug")',
+                      'signingConfig = signingConfigs.getByName("release")')
+        if 'signingConfig =' not in g:
+            g = g.replace('getByName("release") {',
+                          'getByName("release") {\n        signingConfig = signingConfigs.getByName("release")', 1)
+    else:
+        sig = ('    signingConfigs {\n'
+               '        release {\n'
+               '            storeFile file("yuewu.keystore")\n'
+               '            storePassword "yuewu2024"\n'
+               '            keyAlias "yuewu"\n'
+               '            keyPassword "yuewu2024"\n'
+               '        }\n'
+               '    }\n')
+        if 'signingConfigs' not in g:
+            g = g.replace('    buildTypes {', sig + '    buildTypes {', 1)
+        g = g.replace('signingConfig signingConfigs.debug',
+                      'signingConfig signingConfigs.release')
+    open(p, 'w').write(g)
+    print('=== patched', p, '===')
+    print(open(p).read())
+PYEOF
+          python3 /tmp/sign.py
 
       - name: Install dependencies
         run: flutter pub get

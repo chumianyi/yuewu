@@ -19,6 +19,7 @@ class _CharacterDetailPageState extends State<CharacterDetailPage> {
   bool _loading = true;
   bool _liking = false;
   bool _sending = false;
+  bool _isOwner = false;
 
   @override
   void initState() {
@@ -37,12 +38,16 @@ class _CharacterDetailPageState extends State<CharacterDetailPage> {
       final results = await Future.wait([
         _api.getCharacterDetail(widget.characterId),
         _api.getCharacterComments(widget.characterId),
+        _api.getMe(),
       ]);
       if (mounted) {
+        final d = results[0] as Map<String, dynamic>;
+        final me = results[2] as Map<String, dynamic>;
         setState(() {
-          _detail = results[0] as Map<String, dynamic>;
+          _detail = d;
           _comments = results[1] as List;
           _loading = false;
+          _isOwner = '${d['userId'] ?? ''}' == '${me['id'] ?? me['userId'] ?? ''}';
         });
       }
     } catch (e) {
@@ -151,6 +156,60 @@ class _CharacterDetailPageState extends State<CharacterDetailPage> {
     );
   }
 
+  void _editCharacter() {
+    final d = _detail ?? {};
+    final nameCtrl = TextEditingController(text: d['name']?.toString() ?? '');
+    final descCtrl = TextEditingController(text: d['description']?.toString() ?? '');
+    final sysCtrl = TextEditingController(text: d['systemPrompt']?.toString() ?? '');
+    final greetCtrl = TextEditingController(text: d['greeting']?.toString() ?? '');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('编辑角色'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '角色名')),
+              TextField(controller: descCtrl, maxLines: 3, decoration: const InputDecoration(labelText: '描述')),
+              TextField(controller: sysCtrl, maxLines: 4, decoration: const InputDecoration(labelText: '角色设定(systemPrompt)')),
+              TextField(controller: greetCtrl, maxLines: 3, decoration: const InputDecoration(labelText: '开场白')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                await _api.updateCharacter(widget.characterId, {
+                  'name': nameCtrl.text.trim(),
+                  'description': descCtrl.text.trim(),
+                  'systemPrompt': sysCtrl.text.trim(),
+                  'greeting': greetCtrl.text.trim(),
+                });
+                if (mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('已更新，所有对话已清空')),
+                  );
+                  _load();
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('更新失败: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('更新'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final portrait = _detail?['portrait']?.toString();
@@ -168,6 +227,12 @@ class _CharacterDetailPageState extends State<CharacterDetailPage> {
                   backgroundColor: _pink,
                   foregroundColor: Colors.white,
                   actions: [
+                    if (_isOwner)
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        tooltip: '编辑',
+                        onPressed: _editCharacter,
+                      ),
                     IconButton(
                       icon: const Icon(Icons.flag_outlined),
                       tooltip: '举报',
