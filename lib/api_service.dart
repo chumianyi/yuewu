@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
@@ -62,33 +62,35 @@ class ApiService {
   Future<dynamic> _send(String method, String path,
       [Map<String, dynamic>? data]) async {
     final uri = Uri.parse('$baseUrl$path');
-    final client = HttpClient();
-    try {
-      final request = switch (method) {
-        'POST' => await client.postUrl(uri),
-        'PUT' => await client.putUrl(uri),
-        'DELETE' => await client.deleteUrl(uri),
-        _ => await client.getUrl(uri),
-      };
-      _headers.forEach((k, v) => request.headers.set(k, v));
-      if (data != null) {
-        request.write(jsonEncode(data));
-      }
-      final response = await request.close();
-      final body = await response.transform(utf8.decoder).join();
-      if (response.statusCode == 401) {
-        await _saveToken(null);
-        _redirectToLogin();
-        throw ApiException(401, body);
-      }
-      if (response.statusCode >= 400) {
-        throw ApiException(response.statusCode, body);
-      }
-      if (body.isEmpty) return {};
-      return jsonDecode(body);
-    } finally {
-      client.close();
+    // 关键：body 必须是 jsonEncode(data) 得到的字符串，Content-Type 为 application/json，
+    // 不能把 Map 直接 toString()。使用 package:http 保证编码正确。
+    final body = data == null ? null : jsonEncode(data);
+    http.Response resp;
+    switch (method) {
+      case 'POST':
+        resp = await http.post(uri, headers: _headers, body: body);
+        break;
+      case 'PUT':
+        resp = await http.put(uri, headers: _headers, body: body);
+        break;
+      case 'DELETE':
+        resp = await http.delete(uri, headers: _headers);
+        break;
+      default:
+        resp = await http.get(uri, headers: _headers);
     }
+    final status = resp.statusCode;
+    final rbody = resp.body;
+    if (status == 401) {
+      await _saveToken(null);
+      _redirectToLogin();
+      throw ApiException(401, rbody);
+    }
+    if (status >= 400) {
+      throw ApiException(status, rbody);
+    }
+    if (rbody.isEmpty) return {};
+    return jsonDecode(rbody);
   }
 
   // ── Auth ──────────────────────────────────────────────
@@ -133,7 +135,7 @@ class ApiService {
         as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> getCharacterDetail(int id) async {
+  Future<Map<String, dynamic>> getCharacterDetail(String id) async {
     return await _send('GET', '/api/characters/$id') as Map<String, dynamic>;
   }
 
@@ -141,21 +143,21 @@ class ApiService {
     return await _send('POST', '/api/characters', data) as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> likeCharacter(int id) async {
+  Future<Map<String, dynamic>> likeCharacter(String id) async {
     return await _send('POST', '/api/characters/$id/like') as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> reportCharacter(int id, String reason) async {
+  Future<Map<String, dynamic>> reportCharacter(String id, String reason) async {
     return await _send('POST', '/api/characters/$id/report',
         {'reason': reason}) as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> commentCharacter(int id, String content) async {
+  Future<Map<String, dynamic>> commentCharacter(String id, String content) async {
     return await _send('POST', '/api/characters/$id/comment',
         {'content': content}) as Map<String, dynamic>;
   }
 
-  Future<List<dynamic>> getCharacterComments(int id) async {
+  Future<List<dynamic>> getCharacterComments(String id) async {
     final res = await _send('GET', '/api/characters/$id/comments');
     if (res is List) return res;
     if (res is Map) return res['list'] ?? res['data'] ?? res['comments'] ?? [];
@@ -180,14 +182,22 @@ class ApiService {
     return await _send('POST', '/api/stories', data) as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> getStoryDetail(String id) async {
+    return await _send('GET', '/api/stories/$id') as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> updateStory(String id, Map<String, dynamic> data) async {
+    return await _send('PUT', '/api/stories/$id', data) as Map<String, dynamic>;
+  }
+
   // ── Chat ──────────────────────────────────────────────
 
   /// 非流式对话 → {reply, totalSeconds, break_reminder}
   Future<Map<String, dynamic>> chat(
     String model,
     List<Map<String, String>> messages,
-    int? characterId,
-    int? storyId,
+    String? characterId,
+    String? storyId,
   ) async {
     return await _send('POST', '/api/chat', {
       'model': model,
@@ -198,8 +208,8 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> saveChat(
-    int characterId,
-    int? storyId,
+    String characterId,
+    String? storyId,
     List<Map<String, String>> messages,
     String model,
   ) async {
@@ -211,7 +221,7 @@ class ApiService {
     }) as Map<String, dynamic>;
   }
 
-  Future<List<dynamic>> getChatHistory(int characterId, int? storyId) async {
+  Future<List<dynamic>> getChatHistory(String characterId, String? storyId) async {
     final qs = storyId != null ? '&storyId=$storyId' : '';
     final res = await _send('GET', '/api/chat/history?characterId=$characterId$qs');
     if (res is List) return res;
@@ -232,7 +242,7 @@ class ApiService {
     return await _send('GET', '/api/partner') as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> updatePartner(int characterId) async {
+  Future<Map<String, dynamic>> updatePartner(String characterId) async {
     return await _send('PUT', '/api/partner',
         {'characterId': characterId}) as Map<String, dynamic>;
   }
@@ -255,7 +265,7 @@ class ApiService {
 
   // ── Story ─────────────────────────────────────────────
 
-  Future<Map<String, dynamic>> storyChoice(int storyId, String choice) async {
+  Future<Map<String, dynamic>> storyChoice(String storyId, String choice) async {
     return await _send('POST', '/api/story/choice', {
       'storyId': storyId,
       'choice': choice,

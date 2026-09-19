@@ -480,7 +480,7 @@ class _StoryTabState extends State<_StoryTab> {
   final _ctrl = TextEditingController();
   bool _isPlot = true; // true=剧情故事, false=开放故事
   List<dynamic> _myCharacters = [];
-  final Set<int> _selectedCharIds = {};
+  final Set<String> _selectedCharIds = {};
   bool _loadingChars = false;
   static const _chips = [
     '弹幕系统',
@@ -566,7 +566,7 @@ class _StoryTabState extends State<_StoryTab> {
                   itemCount: _myCharacters.length,
                   itemBuilder: (context, i) {
                     final c = _myCharacters[i];
-                    final id = (c['id'] ?? c['_id'] ?? 0) as int;
+                    final id = (c['id'] ?? c['_id'] ?? '').toString();
                     final name = (c['name'] ?? '未命名').toString();
                     final selected = _selectedCharIds.contains(id);
                     return CheckboxListTile(

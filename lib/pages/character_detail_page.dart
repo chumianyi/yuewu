@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../api_service.dart';
 
 class CharacterDetailPage extends StatefulWidget {
-  final int characterId;
+  final String characterId;
   const CharacterDetailPage({super.key, required this.characterId});
 
   @override

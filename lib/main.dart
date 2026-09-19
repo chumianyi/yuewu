@@ -111,22 +111,22 @@ class YueWuApp extends StatelessWidget {
             final args = settings.arguments as Map<String, dynamic>;
             return MaterialPageRoute(
               builder: (_) => ChatPage(
-                characterId: args['characterId'],
-                storyId: args['storyId'],
+                characterId: '${args['characterId']}',
+                storyId: args['storyId']?.toString(),
                 characterName: args['characterName'] ?? '',
               ),
             );
           case '/character_detail':
             final args = settings.arguments as Map<String, dynamic>;
             return MaterialPageRoute(
-              builder: (_) => CharacterDetailPage(characterId: args['characterId']),
+              builder: (_) => CharacterDetailPage(characterId: '${args['characterId']}'),
             );
           case '/story_detail':
             final args = settings.arguments as Map<String, dynamic>;
             return MaterialPageRoute(
               builder: (_) => StoryDetailPage(
-                storyId: args['storyId'],
-                characterId: args['characterId'],
+                storyId: '${args['storyId']}',
+                characterId: '${args['characterId']}',
               ),
             );
         }

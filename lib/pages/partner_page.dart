@@ -43,10 +43,11 @@ class _PartnerPageState extends State<PartnerPage> {
   String get _name => (_partner['name'] ?? '悟悟').toString();
   String get _intro =>
       (_partner['brief'] ?? _partner['description'] ?? '你的专属 AI 伙伴').toString();
-  int? get _characterId =>
-      (_partner['characterId'] ?? _partner['id']) is int
-          ? (_partner['characterId'] ?? _partner['id']) as int
-          : int.tryParse('${_partner['characterId'] ?? _partner['id'] ?? ''}');
+  String? get _characterId {
+    final v = _partner['characterId'] ?? _partner['id'];
+    if (v == null) return null;
+    return v.toString();
+  }
 
   String _portraitUrl(String? path) {
     return _api.imageUrl(path);
@@ -261,7 +262,7 @@ class _PartnerPageState extends State<PartnerPage> {
                     final name = (c['name'] ?? '角色').toString();
                     final portrait = c['portrait']?.toString();
                     final url = _portraitUrl(portrait);
-                    final isCurrent = _characterId == c['id'];
+                    final isCurrent = _characterId == c['id']?.toString();
                     return ListTile(
                       leading: CircleAvatar(
                         backgroundColor: _pink.withValues(alpha: 0.2),
@@ -278,7 +279,7 @@ class _PartnerPageState extends State<PartnerPage> {
                       onTap: () async {
                         Navigator.pop(ctx);
                         try {
-                          await _api.updatePartner(c['id'] as int);
+                          await _api.updatePartner(c['id'].toString());
                           await _load();
                         } catch (e) {
                           if (mounted) {

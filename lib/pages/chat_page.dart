@@ -7,8 +7,8 @@ import '../api_service.dart';
 enum ChatMode { long, normal, delicate, extreme }
 
 class ChatPage extends StatefulWidget {
-  final int characterId;
-  final int? storyId;
+  final String characterId;
+  final String? storyId;
   final String characterName;
 
   const ChatPage({
