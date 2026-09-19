@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../api.dart';
 
 class CreateStoryPage extends StatefulWidget {
   const CreateStoryPage({super.key});
@@ -20,13 +21,26 @@ class _CreateStoryPageState extends State<CreateStoryPage> {
   bool _storyWillEnd = false;
   bool _showAdvanced = false;
   final List<String> _selectedCharacters = [];
+  List<dynamic> _availableCharacters = [];
+  bool _loadingChars = true;
 
-  final List<String> _availableCharacters = const [
-    '苏小雨',
-    '陆景深',
-    '林晚星',
-    '顾言泽',
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadMyCharacters();
+  }
+
+  Future<void> _loadMyCharacters() async {
+    try {
+      final r = await Api.getMyCharacters();
+      setState(() {
+        _availableCharacters = r['list'] ?? [];
+        _loadingChars = false;
+      });
+    } catch (e) {
+      setState(() => _loadingChars = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -227,25 +241,31 @@ class _CreateStoryPageState extends State<CreateStoryPage> {
               ),
             ),
             const SizedBox(height: 16),
-            ..._availableCharacters.map((c) {
-              final selected = _selectedCharacters.contains(c);
-              return ListTile(
-                title: Text(c),
-                trailing: selected
-                    ? Icon(Icons.check_circle, color: accentPink)
-                    : const Icon(Icons.circle_outlined),
-                onTap: () {
-                  setState(() {
-                    if (selected) {
-                      _selectedCharacters.remove(c);
-                    } else {
-                      _selectedCharacters.add(c);
-                    }
-                  });
-                  Navigator.pop(context);
-                },
-              );
-            }),
+            if (_loadingChars)
+              const Center(child: CircularProgressIndicator())
+            else if (_availableCharacters.isEmpty)
+              const Text('还没有自己的角色，先去创建吧')
+            else
+              ..._availableCharacters.map((c) {
+                final name = c['name'] ?? '';
+                final selected = _selectedCharacters.contains(name);
+                return ListTile(
+                  title: Text(name),
+                  trailing: selected
+                      ? Icon(Icons.check_circle, color: accentPink)
+                      : const Icon(Icons.circle_outlined),
+                  onTap: () {
+                    setState(() {
+                      if (selected) {
+                        _selectedCharacters.remove(name);
+                      } else {
+                        _selectedCharacters.add(name);
+                      }
+                    });
+                    Navigator.pop(context);
+                  },
+                );
+              }),
           ],
         ),
       ),
@@ -275,7 +295,8 @@ class _CreateStoryPageState extends State<CreateStoryPage> {
           ),
           isExpanded: true,
           items: _availableCharacters.map((c) {
-            return DropdownMenuItem(value: c, child: Text(c));
+            final name = c['name'] ?? '';
+            return DropdownMenuItem(value: name, child: Text(name));
           }).toList(),
           onChanged: (val) {
             setState(() => _selectedCharacter = val);

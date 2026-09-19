@@ -56,7 +56,7 @@ class _CreateCharacterFormState extends State<CreateCharacterForm> {
     setState(() => _publishing = true);
     try {
       final r = await Api.generatePortrait('anime portrait, $prompt');
-      setState(() => _portrait = r['url']);
+      setState(() => _portrait = r['imageUrl'] ?? r['url']);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {

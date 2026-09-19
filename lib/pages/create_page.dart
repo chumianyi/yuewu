@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../api.dart';
 import 'create_character_page.dart';
 import 'create_story_page.dart';
 
@@ -46,6 +47,45 @@ class _CreatePageState extends State<CreatePage>
     '我有隐藏实力',
     '更多',
   ];
+
+  final _portraitCtrl = TextEditingController();
+  final _characterCtrl = TextEditingController();
+  final _storyCtrl = TextEditingController();
+
+  Future<void> _aiHelp(String type, TextEditingController ctrl) async {
+    final inputCtrl = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('AI帮你创作'),
+        content: TextField(
+          controller: inputCtrl,
+          maxLines: 3,
+          decoration: const InputDecoration(hintText: '描述你想要的...'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, inputCtrl.text), child: const Text('生成')),
+        ],
+      ),
+    );
+    if (result == null || result.isEmpty) return;
+    if (!mounted) return;
+    showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
+    try {
+      final prompt = type == 'portrait'
+          ? '帮我写一段动漫角色立绘描述：$result'
+          : type == 'character'
+              ? '帮我写一个AI角色的详细设定，包括性格、身份、说话风格：$result'
+              : '帮我写一个故事世界观设定：$result';
+      final r = await Api.chat(model: 'normal', messages: [{'role': 'user', 'content': prompt}]);
+      ctrl.text = r['reply'] ?? '';
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) Navigator.pop(context);
+    }
+  }
 
   @override
   void initState() {
@@ -113,6 +153,7 @@ class _CreatePageState extends State<CreatePage>
               ],
             ),
             child: TextField(
+              controller: _portraitCtrl,
               maxLines: 5,
               decoration: InputDecoration(
                 hintText: '输入你脑海中的形象',
@@ -127,7 +168,7 @@ class _CreatePageState extends State<CreatePage>
             children: [
               _buildActionButton('+ 参考图', Icons.image_outlined),
               const SizedBox(width: 12),
-              _buildActionButton('+ AI帮写', Icons.auto_awesome),
+              _buildActionButton('+ AI帮写', Icons.auto_awesome, onTap: () => _aiHelp('portrait', _portraitCtrl)),
             ],
           ),
           const SizedBox(height: 24),
@@ -198,6 +239,7 @@ class _CreatePageState extends State<CreatePage>
               ],
             ),
             child: TextField(
+              controller: _characterCtrl,
               maxLines: 4,
               decoration: InputDecoration(
                 hintText: '输入你想创建的角色',
@@ -209,7 +251,7 @@ class _CreatePageState extends State<CreatePage>
           ),
           const SizedBox(height: 16),
           Center(
-            child: _buildActionButton('+ AI助手', Icons.auto_awesome),
+            child: _buildActionButton('+ AI助手', Icons.auto_awesome, onTap: () => _aiHelp('character', _characterCtrl)),
           ),
           const SizedBox(height: 24),
           Text(
@@ -320,6 +362,7 @@ class _CreatePageState extends State<CreatePage>
               ],
             ),
             child: TextField(
+              controller: _storyCtrl,
               maxLines: 5,
               decoration: InputDecoration(
                 hintText: '输入你想构建的世界观',
@@ -331,7 +374,7 @@ class _CreatePageState extends State<CreatePage>
           ),
           const SizedBox(height: 16),
           Center(
-            child: _buildActionButton('+ AI助手', Icons.auto_awesome),
+            child: _buildActionButton('+ AI助手', Icons.auto_awesome, onTap: () => _aiHelp('story', _storyCtrl)),
           ),
           const SizedBox(height: 24),
           Text(
@@ -367,8 +410,10 @@ class _CreatePageState extends State<CreatePage>
     );
   }
 
-  Widget _buildActionButton(String label, IconData icon) {
-    return Container(
+  Widget _buildActionButton(String label, IconData icon, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -389,6 +434,7 @@ class _CreatePageState extends State<CreatePage>
             ),
           ),
         ],
+      ),
       ),
     );
   }

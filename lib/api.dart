@@ -38,7 +38,7 @@ class Api {
     final h = await _headers();
     final r = await http.post(Uri.parse('$baseUrl$path'), headers: h, body: jsonEncode(body));
     final d = jsonDecode(r.body);
-    if (r.statusCode >= 400) throw d['error'] ?? '请求失败';
+    if (r.statusCode >= 400) throw d['detail'] ?? d['error'] ?? '请求失败';
     return d;
   }
 
@@ -46,7 +46,7 @@ class Api {
     final h = await _headers();
     final r = await http.get(Uri.parse('$baseUrl$path'), headers: h);
     final d = jsonDecode(r.body);
-    if (r.statusCode >= 400) throw d['error'] ?? '请求失败';
+    if (r.statusCode >= 400) throw d['detail'] ?? d['error'] ?? '请求失败';
     return d;
   }
 
