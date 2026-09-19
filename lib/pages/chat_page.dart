@@ -53,8 +53,8 @@ class _ChatPageState extends State<ChatPage> {
   void dispose() {
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
-    _audioPlayer.dispose();
-    _recorder.dispose();
+    // _audioPlayer.dispose();
+    // _recorder.dispose();
     super.dispose();
   }
 
@@ -203,55 +203,21 @@ class _ChatPageState extends State<ChatPage> {
     } catch (_) {}
   }
 
-  // ── TTS 朗读 ──────────────────────────────────────────
+  // ── TTS 朗读 (disabled) ──────────────────────────────────────────
 
   Future<void> _playTts(String text, int index) async {
-    // 点击正在播放的 → 停止
-    if (_playingIndex == index) {
-      await _audioPlayer.stop();
-      setState(() => _playingIndex = null);
-      return;
-    }
-    try {
-      setState(() => _playingIndex = index);
-      final res = await _api.tts(text, 'default');
-      final url = res['url'] ?? res['audioUrl'] ?? res['data'];
-      if (url != null) {
-        await _audioPlayer.play(UrlSource(url.toString()));
-        _audioPlayer.onPlayerComplete.listen((_) {
-          if (mounted) setState(() => _playingIndex = null);
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _playingIndex = null);
-    }
+    // Audio disabled
   }
 
-  // ── ASR 语音输入 ──────────────────────────────────────
+  // ── ASR 语音输入 (disabled) ──────────────────────────────────────
 
   Future<void> _startRecording() async {
-    if (await _recorder.hasPermission()) {
-      final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/yuewu_audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
-      await _recorder.start(
-        const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 128000, sampleRate: 44100),
-        path: path,
-      );
-      setState(() => _recording = true);
-    }
+    // Recording disabled
   }
 
   Future<void> _stopRecording() async {
-    final path = await _recorder.stop();
-    setState(() => _recording = false);
-    if (path == null) return;
-    try {
-      final res = await _api.asr(File(path));
-      final text = res['text'] ?? res['result'] ?? '';
-      if (text.isNotEmpty) {
-        setState(() {
-          _inputCtrl.text = text;
-          _inputCtrl.selection = TextSelection.fromPosition(TextPosition(offset: text.length));
+    // Recording disabled
+  }
         });
       }
     } catch (_) {
