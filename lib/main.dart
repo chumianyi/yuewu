@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'api_service.dart';
-import 'home_page.dart';
-import 'chat_page.dart';
-import 'discover_page.dart';
-import 'messages_page.dart';
-import 'profile_page.dart';
-import 'character_detail_page.dart';
-import 'create_character_page.dart';
-import 'login_page.dart';
-import 'register_page.dart';
-import 'story_detail_page.dart';
+import 'pages/home_page.dart';
+import 'pages/chat_page.dart';
+import 'pages/discover_page.dart';
+import 'pages/messages_page.dart';
+import 'pages/profile_page.dart';
+import 'pages/character_detail_page.dart';
+import 'pages/create_character_page.dart';
+import 'pages/login_page.dart';
+import 'pages/register_page.dart';
+import 'pages/story_detail_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -180,6 +180,8 @@ class _AiBadgeIcon extends StatelessWidget {
     );
   }
 }
+
+class MainPage extends StatefulWidget {
   const MainPage({super.key});
 
   @override
