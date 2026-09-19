@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../api.dart';
 import 'create_character_page.dart';
@@ -53,33 +54,66 @@ class _CreatePageState extends State<CreatePage>
   final _storyCtrl = TextEditingController();
 
   Future<void> _aiHelp(String type, TextEditingController ctrl) async {
-    final inputCtrl = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('AI帮你创作'),
-        content: TextField(
-          controller: inputCtrl,
-          maxLines: 3,
-          decoration: const InputDecoration(hintText: '描述你想要的...'),
+    if (type == 'portrait') {
+      // 捏形象：AI帮写优化prompt
+      final inputCtrl = TextEditingController();
+      final result = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('描述你的形象'),
+          content: TextField(
+            controller: inputCtrl,
+            maxLines: 3,
+            decoration: const InputDecoration(hintText: '如：傲娇猫娘，白发红瞳...'),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+            ElevatedButton(onPressed: () => Navigator.pop(ctx, inputCtrl.text), child: const Text('生成')),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, inputCtrl.text), child: const Text('生成')),
-        ],
-      ),
-    );
-    if (result == null || result.isEmpty) return;
-    if (!mounted) return;
+      );
+      if (result == null || result.isEmpty) return;
+      ctrl.text = result;
+      return;
+    }
+
+    // 角色/故事：AI直接创建
+    if (ctrl.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先输入你的想法')));
+      return;
+    }
     showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
     try {
-      final prompt = type == 'portrait'
-          ? '帮我写一段动漫角色立绘描述：$result'
-          : type == 'character'
-              ? '帮我写一个AI角色的详细设定，包括性格、身份、说话风格：$result'
-              : '帮我写一个故事世界观设定：$result';
+      final prompt = type == 'character'
+          ? '请根据这个想法创建一个完整的AI角色，返回JSON格式：{"name":"角色名","description":"简介","greeting":"开场白","systemPrompt":"详细设定"}。想法：${ctrl.text}'
+          : '请根据这个想法创建一个故事，返回JSON格式：{"name":"故事名","description":"简介","content":"世界观设定"}。想法：${ctrl.text}';
       final r = await Api.chat(model: 'normal', messages: [{'role': 'user', 'content': prompt}]);
-      ctrl.text = r['reply'] ?? '';
+      final reply = r['reply'] ?? '';
+      // 简单解析JSON
+      final jsonMatch = RegExp(r'\{[\s\S]*\}').firstMatch(reply);
+      if (jsonMatch != null) {
+        final data = jsonDecode(jsonMatch.group(0)!);
+        if (type == 'character') {
+          await Api.createCharacter({
+            'name': data['name'] ?? '未命名',
+            'description': data['description'] ?? '',
+            'greeting': data['greeting'] ?? '',
+            'systemPrompt': data['systemPrompt'] ?? '',
+            'portrait': '',
+            'category': 'AI创作',
+          });
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('角色创建成功！')));
+        } else {
+          await Api.createStory({
+            'name': data['name'] ?? '未命名',
+            'description': data['description'] ?? '',
+            'content': data['content'] ?? '',
+          });
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('故事创建成功！')));
+        }
+      } else {
+        ctrl.text = reply;
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
@@ -114,6 +148,18 @@ class _CreatePageState extends State<CreatePage>
             fontWeight: FontWeight.bold,
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              if (_tabController.index == 1) {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateCharacterPage()));
+              } else if (_tabController.index == 2) {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateStoryPage()));
+              }
+            },
+            child: Text('自定义创建', style: TextStyle(color: accentPink, fontSize: 14)),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: accentPink,
