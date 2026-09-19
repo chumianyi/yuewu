@@ -106,6 +106,18 @@ class Api {
   static Future<dynamic> createCharacter(Map<String, dynamic> data) => _post('/api/characters', data);
   static Future<dynamic> generatePortrait(String prompt) => _post('/api/generate-portrait', {'prompt': prompt});
 
+  static Future<dynamic> chat({required String model, required List<Map<String, String>> messages, String? characterId}) async {
+    final h = await _headers();
+    final r = await http.post(
+      Uri.parse('$baseUrl/api/chat'),
+      headers: h,
+      body: jsonEncode({'model': model, 'messages': messages, if (characterId != null) 'characterId': characterId}),
+    );
+    final d = jsonDecode(r.body);
+    if (r.statusCode >= 400) throw d['detail'] ?? d['error'] ?? '请求失败';
+    return d;
+  }
+
   static Stream<String> chatStream({required String model, required List<Map<String, String>> messages, String? characterId}) async* {
     final t = await token;
     final client = http.Client();

@@ -309,7 +309,7 @@ class _CreateStoryPageState extends State<CreateStoryPage> {
             style: TextStyle(color: Colors.grey[400], fontSize: 14),
           ),
           isExpanded: true,
-          items: _availableCharacters.map((c) {
+          items: _availableCharacters.map<DropdownMenuItem<String>>((c) {
             final name = c['name'] ?? '';
             return DropdownMenuItem(value: name, child: Text(name));
           }).toList(),
