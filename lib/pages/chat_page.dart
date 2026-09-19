@@ -527,7 +527,7 @@ class _ChatPageState extends State<ChatPage> {
     try {
       await _api.deleteChatHistory(widget.characterId, widget.storyId, content);
       setState(() {
-        _messages = _messages.sublist(0, index + 1);
+        _messages.removeRange(index + 1, _messages.length);
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
