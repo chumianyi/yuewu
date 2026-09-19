@@ -22,11 +22,15 @@ class _CreateCharacterPageState extends State<CreateCharacterPage> {
   String? _portraitPath;
   bool _generatingPortrait = false;
   bool _publishing = false;
+  String _imageModel = 'glm';
 
   @override
   void initState() {
     super.initState();
     if (widget.prefill.isNotEmpty) _settingCtrl.text = widget.prefill;
+    ApiService().getImageModel().then((m) {
+      if (mounted) setState(() => _imageModel = m);
+    });
   }
 
   @override
@@ -47,15 +51,49 @@ class _CreateCharacterPageState extends State<CreateCharacterPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('创建形象',
             style: TextStyle(fontWeight: FontWeight.bold)),
-        content: TextField(
-          controller: descCtrl,
-          maxLines: 4,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: '描述你想要的角色形象，如：银色长发，红色眼眸，穿黑色哥特裙',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(12)),
-            ),
+        content: StatefulBuilder(
+          builder: (ctx, setDialog) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: descCtrl,
+                maxLines: 4,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: '描述你想要的角色形象，如：银色长发，红色眼眸，穿黑色哥特裙',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Text('生成模型', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 10),
+                  ChoiceChip(
+                    label: const Text('GLM免费'),
+                    selected: _imageModel == 'glm',
+                    onSelected: (_) {
+                      setDialog(() => _imageModel = 'glm');
+                      ApiService().setImageModel('glm');
+                    },
+                    selectedColor: _kPrimary.withValues(alpha: 0.3),
+                  ),
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    label: const Text('Kolors高质量'),
+                    selected: _imageModel == 'kolors',
+                    onSelected: (_) {
+                      setDialog(() => _imageModel = 'kolors');
+                      ApiService().setImageModel('kolors');
+                    },
+                    selectedColor: _kPrimary.withValues(alpha: 0.3),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
         actions: [
@@ -84,7 +122,7 @@ class _CreateCharacterPageState extends State<CreateCharacterPage> {
   Future<void> _generatePortrait(String prompt) async {
     setState(() => _generatingPortrait = true);
     try {
-      final r = await ApiService().generatePortrait(prompt);
+      final r = await ApiService().generatePortrait(prompt, model: _imageModel);
       final path = (r['imageUrl'] ?? r['url'] ?? r['path'] ?? r['image'] ?? '').toString();
       setState(() => _portraitPath = path);
     } catch (e) {

@@ -71,6 +71,20 @@ class _PortraitTabState extends State<_PortraitTab> {
   bool _generating = false;
   bool _aiWriting = false;
   int _styleIndex = 0;
+  String _imageModel = 'glm';
+
+  @override
+  void initState() {
+    super.initState();
+    ApiService().getImageModel().then((m) {
+      if (mounted) setState(() => _imageModel = m);
+    });
+  }
+
+  Future<void> _setImageModel(String m) async {
+    setState(() => _imageModel = m);
+    await ApiService().setImageModel(m);
+  }
 
   static const _styles = [
     _StyleItem('通用', Color(0xFFE0E0E0)),
@@ -83,7 +97,7 @@ class _PortraitTabState extends State<_PortraitTab> {
   Future<void> _generatePortrait(String prompt) async {
     setState(() => _generating = true);
     try {
-      final r = await ApiService().generatePortrait(prompt);
+      final r = await ApiService().generatePortrait(prompt, model: _imageModel);
       final path = r['imageUrl'] ?? r['url'] ?? r['path'] ?? r['image'] ?? '';
       setState(() => _portraitUrl = path.toString());
     } catch (e) {
@@ -257,6 +271,31 @@ class _PortraitTabState extends State<_PortraitTab> {
             ),
           ),
         ),
+        // 图片模型切换
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              const Text('生成模型',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              const SizedBox(width: 12),
+              ChoiceChip(
+                label: const Text('GLM免费'),
+                selected: _imageModel == 'glm',
+                onSelected: (_) => _setImageModel('glm'),
+                selectedColor: _kPrimary.withValues(alpha: 0.3),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: const Text('Kolors高质量'),
+                selected: _imageModel == 'kolors',
+                onSelected: (_) => _setImageModel('kolors'),
+                selectedColor: _kPrimary.withValues(alpha: 0.3),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
         // 风格预设横滑
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),

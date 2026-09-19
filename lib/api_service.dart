@@ -235,10 +235,24 @@ class ApiService {
   // ── Portrait / Partner / Usage ───────────────────────
 
   /// 生成立绘 → {imageUrl: "/static/portraits/xxx.png"}
-  Future<Map<String, dynamic>> generatePortrait(String prompt) async {
+  /// model: "glm"（默认免费）或 "kolors"（高质量）
+  Future<Map<String, dynamic>> generatePortrait(String prompt,
+      {String model = 'glm'}) async {
     final res = await _send('POST', '/api/generate-portrait',
-        {'prompt': prompt}) as Map<String, dynamic>;
+        {'prompt': prompt, 'model': model}) as Map<String, dynamic>;
     return res;
+  }
+
+  /// 读取用户选择的图片模型（默认 glm）
+  Future<String> getImageModel() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    return _prefs?.getString('image_model') ?? 'glm';
+  }
+
+  /// 记住用户选择的图片模型
+  Future<void> setImageModel(String model) async {
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs?.setString('image_model', model);
   }
 
   Future<Map<String, dynamic>> getPartner() async {
