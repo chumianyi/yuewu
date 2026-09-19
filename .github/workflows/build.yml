@@ -58,10 +58,12 @@ jobs:
                   continue
               g = open(p).read()
               if fn.endswith('.kts'):
-                  sig = 'signingConfigs { create("release") { storeFile = file("yuewu.keystore"); storePassword = "yuewu2024"; keyAlias = "yuewu"; keyPassword = "yuewu2024" } }\n'
+                  sig = 'signingConfigs.create("release") { storeFile = file("yuewu.keystore"); storePassword = "yuewu2024"; keyAlias = "yuewu"; keyPassword = "yuewu2024" }\n'
                   if 'signingConfigs' not in g:
-                      g = g.replace('buildTypes {', sig + 'buildTypes {', 1)
+                      g = g.replace('buildTypes {', 'signingConfigs {\n' + sig + '}\nbuildTypes {', 1)
                   g = g.replace('signingConfig = signingConfigs.getByName("debug")', 'signingConfig = signingConfigs.getByName("release")')
+                  if 'signingConfig =' not in g:
+                      g = re.sub(r'(getByName\("release"\)\s*\{)', r'\1\n        signingConfig = signingConfigs.getByName("release")', g, count=1)
               else:
                   sig = 'signingConfigs { release { storeFile file("yuewu.keystore"); storePassword "yuewu2024"; keyAlias "yuewu"; keyPassword "yuewu2024" } }\n'
                   if 'signingConfigs' not in g:
