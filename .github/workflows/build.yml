@@ -44,6 +44,27 @@ jobs:
           "
           echo "kotlin.compiler.execution.strategy=in-process" >> android/gradle.properties
 
+      - name: Configure Signing
+        run: |
+          cp yuewu.keystore android/app/yuewu.keystore
+          python3 -c "
+          with open('android/app/build.gradle','r') as f: g=f.read()
+          signing = '''    signingConfigs {
+        release {
+            storeFile file(\"yuewu.keystore\")
+            storePassword \"yuewu2024\"
+            keyAlias \"yuewu\"
+            keyPassword \"yuewu2024\"
+        }
+    }
+'''
+          if 'signingConfigs' not in g:
+              g = g.replace('    buildTypes {', signing + '    buildTypes {', 1)
+          g = g.replace('signingConfig signingConfigs.debug', 'signingConfig signingConfigs.release')
+          with open('android/app/build.gradle','w') as f: f.write(g)
+          print(open('android/app/build.gradle').read())
+          "
+
       - name: Install dependencies
         run: flutter pub get
 
