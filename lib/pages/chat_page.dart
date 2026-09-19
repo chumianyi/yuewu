@@ -35,12 +35,12 @@ class _ChatPageState extends State<ChatPage> {
   Map<String, dynamic>? _characterDetail;
   bool _restShowed = false;
 
-  // TTS 播放
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  // TTS 播放 (disabled)
+  // final AudioPlayer _audioPlayer = AudioPlayer();
   int? _playingIndex;
 
-  // 录音
-  final AudioRecorder _recorder = AudioRecorder();
+  // 录音 (disabled)
+  // final AudioRecorder _recorder = AudioRecorder();
   bool _recording = false;
 
   @override

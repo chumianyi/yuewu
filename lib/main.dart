@@ -135,6 +135,8 @@ class YueWuApp extends StatelessWidget {
 }
 
 class _AiBadgeIcon extends StatelessWidget {
+  const _AiBadgeIcon();
+
   @override
   Widget build(BuildContext context) {
     return Stack(

@@ -73,7 +73,7 @@ class _StoryDetailPageState extends State<StoryDetailPage> {
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: const Color(0xFFFFB6C1),
         icon: const Icon(Icons.chat, color: Colors.white),
-        label: const Text('继续对话', color: Colors.white),
+        label: Text('继续对话', style: TextStyle(color: Colors.white)),
         onPressed: () => Navigator.pushNamed(
           context,
           '/chat',
