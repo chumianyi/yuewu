@@ -192,8 +192,16 @@ class _PortraitTabState extends State<_PortraitTab> {
                       children: [
                         OutlinedButton.icon(
                           onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('参考图功能开发中')),
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('上传参考图'),
+                                content: const Text('请输入参考图URL，AI将根据参考图生成相似风格的立绘'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+                                  ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text('确定')),
+                                ],
+                              ),
                             );
                           },
                           icon: const Icon(Icons.add_photo_alternate, size: 18),

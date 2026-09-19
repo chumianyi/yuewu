@@ -158,7 +158,6 @@ class _CharacterCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // 背景：立绘或粉色渐变占位
             if (portrait != null && portrait.isNotEmpty)
               Image.network(
                 portrait.startsWith('http') ? portrait : '${ApiService().baseUrl}$portrait',
