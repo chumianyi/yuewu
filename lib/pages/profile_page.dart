@@ -465,7 +465,7 @@ class _SettingsPageState extends State<_SettingsPage> {
             title: const Text('消息通知'),
             subtitle: const Text('接收新消息与新点赞提醒'),
             value: _push,
-            activeThumbColor: _pink,
+            activeTrackColor: _pink,
             onChanged: (v) async {
               setState(() => _push = v);
               (await SharedPreferences.getInstance()).setBool('push_notify', v);
@@ -476,7 +476,7 @@ class _SettingsPageState extends State<_SettingsPage> {
             title: const Text('触感振动'),
             subtitle: const Text('聊天发送时轻微振动'),
             value: _vibrate,
-            activeThumbColor: _pink,
+            activeTrackColor: _pink,
             onChanged: (v) async {
               setState(() => _vibrate = v);
               (await SharedPreferences.getInstance()).setBool('vibrate', v);
