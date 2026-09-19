@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../core/api_service.dart';
+import '../api_service.dart';
 import 'create_character_page.dart';
 import 'create_story_page.dart';
 import 'ai_assist_dialog.dart';

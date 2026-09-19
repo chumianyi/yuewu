@@ -1,6 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'api_service.dart';
+import '../api_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});

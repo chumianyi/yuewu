@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'api_service.dart';
+import '../api_service.dart';
 
 class DiscoverPage extends StatefulWidget {
   const DiscoverPage({super.key});

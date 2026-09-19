@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../core/api_service.dart';
+import '../api_service.dart';
 
 const Color _kPrimary = Color(0xFFFFB6C1);
 const Color _kBg = Color(0xFFFFF0F5);

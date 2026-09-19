@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'api_service.dart';
+import '../api_service.dart';
 
 class PartnerPage extends StatefulWidget {
   const PartnerPage({super.key});

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'api_service.dart';
+import '../api_service.dart';
 
 class StoryDetailPage extends StatefulWidget {
   final int storyId;
