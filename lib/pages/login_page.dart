@@ -33,7 +33,7 @@ class _LoginPageState extends State<LoginPage> {
 
     setState(() => _isLoading = true);
     try {
-      final endpoint = _isLogin ? '/api/login' : '/api/register';
+      final endpoint = _isLogin ? '/api/auth/login' : '/api/auth/register';
       final response = await http.post(
         Uri.parse('$_baseUrl$endpoint'),
         headers: {'Content-Type': 'application/json'},
@@ -73,7 +73,7 @@ class _LoginPageState extends State<LoginPage> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.close, color: Colors.grey[600]),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(context, false),
         ),
       ),
       body: SingleChildScrollView(

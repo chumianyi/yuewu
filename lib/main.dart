@@ -72,9 +72,11 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
     if (!_loggedIn) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        final result = await Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPage()));
+        final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginPage()));
         if (result == true || result is String) {
           setState(() => _loggedIn = true);
+        } else {
+          setState(() => _loggedIn = true); // 未登录也能看大厅
         }
       });
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
