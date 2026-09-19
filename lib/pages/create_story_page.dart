@@ -113,10 +113,25 @@ class _CreateStoryPageState extends State<CreateStoryPage> {
                     borderRadius: BorderRadius.circular(27),
                   ),
                 ),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('一键绘图功能开发中...')),
-                  );
+                onPressed: () async {
+                  final content = _contentController.text;
+                  if (content.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先填写故事内容')));
+                    return;
+                  }
+                  showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
+                  try {
+                    final r = await Api.generatePortrait('anime cover illustration, $content');
+                    if (mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('封面生成成功！')));
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+                    }
+                  }
                 },
                 child: const Text(
                   '一键绘图',

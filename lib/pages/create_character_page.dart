@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../api.dart';
 
 class CreateCharacterPage extends StatefulWidget {
   const CreateCharacterPage({super.key});
@@ -106,15 +107,20 @@ class _CreateCharacterPageState extends State<CreateCharacterPage> {
 
     setState(() => _isPublishing = true);
     try {
+      final token = await Api.token;
       final response = await http.post(
         Uri.parse('$_baseUrl/api/characters'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
         body: jsonEncode({
           'name': _nameController.text,
-          'setting': _settingController.text,
-          'opening': _openingController.text,
-          'bio': _bioController.text,
+          'systemPrompt': _settingController.text,
+          'greeting': _openingController.text,
+          'description': _bioController.text,
           'portrait': _portraitImageUrl,
+          'category': '自定义',
         }),
       );
 
