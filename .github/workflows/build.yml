@@ -50,7 +50,7 @@ jobs:
           cp yuewu.keystore android/app/yuewu.keystore
           ls -la android/app/yuewu.keystore
           cat > /tmp/sign.py << 'PYEOF'
-          import os
+          import os, re
           base = 'android/app'
           for fn in ['build.gradle', 'build.gradle.kts']:
               p = os.path.join(base, fn)
@@ -65,10 +65,18 @@ jobs:
                   if 'signingConfig =' not in g:
                       g = re.sub(r'(getByName\("release"\)\s*\{)', r'\1\n        signingConfig = signingConfigs.getByName("release")', g, count=1)
               else:
-                  sig = 'signingConfigs { release { storeFile file("yuewu.keystore"); storePassword "yuewu2024"; keyAlias "yuewu"; keyPassword "yuewu2024" } }\n'
+                  sig = '    signingConfigs {\n        release {\n            storeFile file("yuewu.keystore")\n            storePassword "yuewu2024"\n            keyAlias "yuewu"\n            keyPassword "yuewu2024"\n        }\n    }\n'
                   if 'signingConfigs' not in g:
                       g = g.replace('buildTypes {', sig + 'buildTypes {', 1)
-                  g = g.replace('signingConfig signingConfigs.debug', 'signingConfig signingConfigs.release')
+                  if 'signingConfig signingConfigs.release' not in g:
+                      if 'signingConfig signingConfigs.debug' in g:
+                          g = g.replace('signingConfig signingConfigs.debug', 'signingConfig signingConfigs.release')
+                      else:
+                          bi = g.find('buildTypes {')
+                          ri = g.find('release {', bi)
+                          if ri != -1:
+                              insert_at = g.find('{', ri) + 1
+                              g = g[:insert_at] + '\n            signingConfig signingConfigs.release' + g[insert_at:]
               open(p, 'w').write(g)
               print('=== patched', p, '===')
               print(open(p).read())
