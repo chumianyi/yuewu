@@ -12,12 +12,14 @@ const Color _kBg = Color(0xFFFFF0F5);
 const Color _kCard = Colors.white;
 
 class CreatePage extends StatelessWidget {
-  const CreatePage({super.key});
+  final int initialIndex;
+  const CreatePage({super.key, this.initialIndex = 0});
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 5,
+      initialIndex: initialIndex,
       child: Scaffold(
         backgroundColor: _kBg,
         appBar: AppBar(

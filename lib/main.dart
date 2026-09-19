@@ -251,6 +251,32 @@ class _MainPageState extends State<MainPage> {
   }
 
   void _showCreateSheet() {
+    final options = [
+      _CreateOption(Icons.auto_awesome, const Color(0xFFFFB6C1), 'AI创作角色', '用AI生成你的专属伙伴', () {
+        Navigator.pop(context);
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const CreatePage(initialIndex: 1)));
+      }),
+      _CreateOption(Icons.edit, const Color(0xFF90CAF9), '手动创建角色', '从零开始定制你的伙伴', () {
+        Navigator.pop(context);
+        Navigator.pushNamed(context, '/create_character');
+      }),
+      _CreateOption(Icons.auto_stories, const Color(0xFFA5D6A7), '创建故事', '多章节剧情故事', () {
+        Navigator.pop(context);
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const CreatePage(initialIndex: 2)));
+      }),
+      _CreateOption(Icons.auto_fix_high, const Color(0xFFCE93D8), '创建互动剧', 'AI文字互动小说，选择推进剧情', () {
+        Navigator.pop(context);
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const CreatePage(initialIndex: 3)));
+      }),
+      _CreateOption(Icons.movie_creation, const Color(0xFFFFCC80), '创建视频', '输入名称描述，AI生成分镜脚本', () {
+        Navigator.pop(context);
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const CreatePage(initialIndex: 4)));
+      }),
+      _CreateOption(Icons.image, const Color(0xFF80DEEA), '捏形象', '生成角色立绘图片', () {
+        Navigator.pop(context);
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const CreatePage(initialIndex: 0)));
+      }),
+    ];
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -271,29 +297,35 @@ class _MainPageState extends State<MainPage> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 24),
-            ListTile(
-              leading: const Icon(Icons.auto_awesome, color: Color(0xFFFFB6C1)),
-              title: const Text('AI创作角色'),
-              subtitle: const Text('用AI生成你的专属伙伴'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/create_character');
-              },
+            const SizedBox(height: 16),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('创作中心',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ),
-            ListTile(
-              leading: const Icon(Icons.edit, color: Color(0xFFFFB6C1)),
-              title: const Text('手动创建角色'),
-              subtitle: const Text('从零开始定制你的伙伴'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/create_character');
-              },
-            ),
+            const SizedBox(height: 8),
+            ...options.map((o) => ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: o.color.withValues(alpha: 0.2),
+                    child: Icon(o.icon, color: o.color),
+                  ),
+                  title: Text(o.title),
+                  subtitle: Text(o.subtitle),
+                  onTap: o.onTap,
+                )),
             const SizedBox(height: 16),
           ],
         ),
       ),
     );
   }
+}
+
+class _CreateOption {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  _CreateOption(this.icon, this.color, this.title, this.subtitle, this.onTap);
 }
