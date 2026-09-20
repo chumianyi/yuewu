@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../api_service.dart';
 import '../l10n.dart';
-import 'interactive_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,7 +14,6 @@ class _HomePageState extends State<HomePage> with RouteAware {
   final TextEditingController _searchCtrl = TextEditingController();
   int _currentPage = 0;
   List<dynamic> _characters = [];
-  List<dynamic> _interactive = [];
   List<dynamic> _searchChars = [];
   bool _loading = true;
   bool _searching = false;
@@ -53,13 +51,9 @@ class _HomePageState extends State<HomePage> with RouteAware {
       _error = null;
     });
     try {
-      final results = await Future.wait([
-        ApiService().getRandomCharacters(10),
-        ApiService().interactivePublished(),
-      ]);
+      final list = await ApiService().getRandomCharacters(10);
       setState(() {
-        _characters = results[0];
-        _interactive = results[1];
+        _characters = list;
         _loading = false;
         _currentPage = 0;
       });
@@ -182,8 +176,6 @@ class _HomePageState extends State<HomePage> with RouteAware {
       onRefresh: _loadData,
       child: Column(
         children: [
-          // 互动剧横滑
-          if (_interactive.isNotEmpty) _buildInteractiveSection(l10n),
           Expanded(
             child: _characters.isEmpty
                 ? Center(
@@ -237,81 +229,6 @@ class _HomePageState extends State<HomePage> with RouteAware {
     );
   }
 
-  Widget _buildInteractiveSection(AppLocale l10n) {
-    return Container(
-      height: 140,
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Text('热门互动剧', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.purple.shade300)),
-          ),
-          Expanded(
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              itemCount: _interactive.length,
-              itemBuilder: (_, i) {
-                final item = _interactive[i];
-                final cover = item['cover']?.toString() ?? '';
-                return GestureDetector(
-                  onTap: () => _openInteractive(item),
-                  child: Container(
-                    width: 120,
-                    margin: const EdgeInsets.symmetric(horizontal: 6),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: Colors.white,
-                      boxShadow: [BoxShadow(color: Colors.purple.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2))],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                            child: cover.isNotEmpty
-                                ? Image.network(ApiService().imageUrl(cover), fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => _buildInteractivePlaceholder())
-                                : _buildInteractivePlaceholder(),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Text(
-                            item['title']?.toString() ?? '互动剧',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInteractivePlaceholder() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFCE93D8), Color(0xFFE1BEE7), Color(0xFFF3E5F5)],
-        ),
-      ),
-      child: const Center(child: Icon(Icons.auto_stories, size: 36, color: Colors.white)),
-    );
-  }
-
   Widget _buildSearchResults(AppLocale l10n) {
     if (_searching) {
       return const Center(child: CircularProgressIndicator(color: Color(0xFFFF69B4)));
@@ -354,20 +271,6 @@ class _HomePageState extends State<HomePage> with RouteAware {
         onTap: () => _openChat(c),
       ),
     );
-  }
-
-  void _openInteractive(Map<String, dynamic> item) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => InteractivePlayPage(
-          appId: item['id'].toString(),
-          title: item['title']?.toString() ?? '互动剧',
-          initialScene: item['scene']?.toString() ?? '',
-          initialChoices: const [],
-        ),
-      ),
-    ).then((_) => _loadData());
   }
 
   void _openChat(Map<String, dynamic> character) {

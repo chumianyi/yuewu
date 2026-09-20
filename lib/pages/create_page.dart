@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../api_service.dart';
 import 'create_character_page.dart';
 import 'ai_assist_dialog.dart';
-import 'interactive_page.dart';
 
 const Color _kPrimary = Color(0xFFFFB6C1);
 const Color _kBg = Color(0xFFFFF0F5);
@@ -16,8 +15,8 @@ class CreatePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
-      initialIndex: initialIndex > 2 ? 0 : initialIndex,
+      length: 2,
+      initialIndex: initialIndex > 1 ? 0 : initialIndex,
       child: Scaffold(
         backgroundColor: _kBg,
         appBar: AppBar(
@@ -38,14 +37,12 @@ class CreatePage extends StatelessWidget {
             tabs: [
               Tab(text: '捏形象'),
               Tab(text: '角色'),
-              Tab(text: '互动剧'),
             ],
           ),
         ),
         body: const TabBarView(children: [
           _PortraitTab(),
           _CharacterTab(),
-          InteractivePage(),
         ]),
       ),
     );

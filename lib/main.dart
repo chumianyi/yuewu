@@ -276,10 +276,6 @@ class _MainPageState extends State<MainPage> {
         Navigator.pop(context);
         Navigator.pushNamed(context, '/create_character');
       }),
-      _CreateOption(Icons.auto_fix_high, const Color(0xFFCE93D8), '创建互动剧', 'AI文字互动小说，选择推进剧情', () {
-        Navigator.pop(context);
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const CreatePage(initialIndex: 2)));
-      }),
       _CreateOption(Icons.image, const Color(0xFF80DEEA), '捏形象', '生成角色立绘图片', () {
         Navigator.pop(context);
         Navigator.push(context, MaterialPageRoute(builder: (_) => const CreatePage(initialIndex: 0)));
