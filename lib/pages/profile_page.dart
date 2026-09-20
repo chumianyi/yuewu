@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../api_service.dart';
+import '../l10n.dart';
 import 'login_page.dart';
+import 'privacy_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -171,6 +173,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildMenu() {
+    final l10n = AppLocale.instance;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
@@ -181,11 +184,16 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           _menuItem(Icons.person_outline, '编辑资料', () => _showEditProfile()),
           _menuItem(Icons.lock_outline, '修改密码', () => _showChangePassword()),
-          _menuItem(Icons.settings, '设置', () => _showSettings()),
+          _menuItem(Icons.settings, l10n.t('设置'), () => _showSettings()),
+          _menuItem(Icons.language, l10n.t('语言设置'), () => _showLanguagePicker()),
+          _menuItem(Icons.privacy_tip_outlined, l10n.t('隐私政策'), () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPage()));
+          }),
           _menuItem(Icons.feedback_outlined, '意见反馈', () => _showFeedback()),
           _menuItem(Icons.info_outline, '关于月悟', () => _showAbout()),
           const Divider(height: 1),
-          _menuItem(Icons.logout, '退出登录', () => _logout(), color: Colors.red),
+          _menuItem(Icons.logout, l10n.t('退出登录'), () => _logout(), color: Colors.red),
+          _menuItem(Icons.delete_forever, l10n.t('注销账号'), () => _showDeleteAccount(), color: Colors.red),
         ],
       ),
     );
@@ -252,6 +260,109 @@ class _ProfilePageState extends State<ProfilePage> {
             ListTile(leading: const Icon(Icons.cleaning_services), title: const Text('清除缓存'), onTap: () { Navigator.pop(ctx); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('缓存已清除'))); }),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showLanguagePicker() {
+    final l10n = AppLocale.instance;
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(l10n.t('选择语言'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+            ...AppLocale.supportedLanguages.map((l) {
+              final code = l['code'] ?? 'zh';
+              final selected = l10n.lang == code;
+              return ListTile(
+                leading: Icon(selected ? Icons.radio_button_checked : Icons.radio_button_unchecked, color: const Color(0xFFFF69B4)),
+                title: Text(l['name'] ?? code),
+                trailing: selected ? const Icon(Icons.check, color: Color(0xFFFF69B4)) : null,
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await l10n.setLang(code);
+                  if (mounted) {
+                    setState(() {});
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.t('已切换') + ': ${l['name']}')));
+                  }
+                },
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteAccount() {
+    final l10n = AppLocale.instance;
+    final confirmCtrl = TextEditingController();
+    // 第一步：警示 + 二次确认
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.t('确认注销'), style: const TextStyle(color: Colors.red)),
+        content: Text(l10n.t('注销后账号将无法登录，对话记录将被删除，发布的内容将被下架。此操作不可恢复。')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.t('取消'))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showDeleteAccountConfirm(confirmCtrl, l10n);
+            },
+            child: Text(l10n.t('继续')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteAccountConfirm(TextEditingController confirmCtrl, AppLocale l10n) {
+    final needType = l10n.lang.startsWith('zh') ? '注销' : (l10n.lang.startsWith('ru') ? 'УДАЛИТЬ' : 'DELETE');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.t('再次确认：输入「注销」以继续')),
+        content: TextField(
+          controller: confirmCtrl,
+          decoration: InputDecoration(hintText: needType),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(l10n.t('取消'))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              if (confirmCtrl.text.trim() != needType) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('请输入 $needType 以确认')));
+                return;
+              }
+              Navigator.pop(ctx);
+              try {
+                await _api.deleteAccount();
+                if (mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginPage()),
+                    (r) => false,
+                  );
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.t('注销成功'))));
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+                }
+              }
+            },
+            child: Text(l10n.t('确认注销')),
+          ),
+        ],
       ),
     );
   }

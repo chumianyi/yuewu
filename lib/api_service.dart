@@ -287,6 +287,39 @@ class ApiService {
         {'content': content}) as Map<String, dynamic>;
   }
 
+  // ── Privacy / Account Deletion / Random / Search / Home ──
+
+  /// 获取隐私政策
+  Future<Map<String, dynamic>> getPrivacyPolicy() async {
+    return await _send('GET', '/api/privacy') as Map<String, dynamic>;
+  }
+
+  /// 注销当前账号（软删除）
+  Future<Map<String, dynamic>> deleteAccount() async {
+    final res = await _send('DELETE', '/api/auth/account') as Map<String, dynamic>;
+    await _saveToken(null);
+    return res;
+  }
+
+  /// 随机角色列表
+  Future<List<dynamic>> getRandomCharacters(int count) async {
+    final res = await _send('GET', '/api/characters/random?count=$count');
+    if (res is Map) return res['list'] ?? [];
+    return res is List ? res : [];
+  }
+
+  /// 全站搜索（角色 + 故事）
+  Future<Map<String, dynamic>> search(String q) async {
+    final enc = Uri.encodeQueryComponent(q);
+    return await _send('GET', '/api/search?q=$enc') as Map<String, dynamic>;
+  }
+
+  /// 主页混合列表（角色 + 故事）
+  Future<Map<String, dynamic>> getHome({int page = 1, int pageSize = 20}) async {
+    return await _send('GET', '/api/home?page=$page&pageSize=$pageSize')
+        as Map<String, dynamic>;
+  }
+
   // ── TTS ──────────────────────────────────────────────
 
   Future<Map<String, dynamic>> tts(String text, String voice) async {

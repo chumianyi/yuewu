@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'api_service.dart';
+import 'l10n.dart';
 import 'pages/home_page.dart';
 import 'pages/chat_page.dart';
 import 'pages/discover_page.dart';
@@ -12,16 +13,39 @@ import 'pages/create_page.dart';
 import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 import 'pages/story_detail_page.dart';
+import 'pages/privacy_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   await ApiService().init();
+  await AppLocale.instance.load();
   runApp(const YueWuApp());
 }
 
-class YueWuApp extends StatelessWidget {
+class YueWuApp extends StatefulWidget {
   const YueWuApp({super.key});
+
+  @override
+  State<YueWuApp> createState() => _YueWuAppState();
+}
+
+class _YueWuAppState extends State<YueWuApp> {
+  @override
+  void initState() {
+    super.initState();
+    AppLocale.instance.langNotifier.addListener(_onLangChanged);
+  }
+
+  @override
+  void dispose() {
+    AppLocale.instance.langNotifier.removeListener(_onLangChanged);
+    super.dispose();
+  }
+
+  void _onLangChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -105,6 +129,7 @@ class YueWuApp extends StatelessWidget {
         '/messages': (_) => const MessagesPage(),
         '/profile': (_) => const ProfilePage(),
         '/create_character': (_) => const CreateCharacterPage(),
+        '/privacy': (_) => const PrivacyPage(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {
