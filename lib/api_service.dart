@@ -320,6 +320,20 @@ class ApiService {
         as Map<String, dynamic>;
   }
 
+  /// 获取单个故事详情
+  Future<Map<String, dynamic>> getStory(String id) async {
+    return await _send('GET', '/api/stories/$id') as Map<String, dynamic>;
+  }
+
+  /// 多角色故事聊天：用户发一条，所有角色轮流回复
+  Future<Map<String, dynamic>> storyChat(
+      String storyId, List<Map<String, String>> messages) async {
+    return await _send('POST', '/api/story/chat', {
+      'storyId': storyId,
+      'messages': messages,
+    }) as Map<String, dynamic>;
+  }
+
   // ── TTS ──────────────────────────────────────────────
 
   Future<Map<String, dynamic>> tts(String text, String voice) async {

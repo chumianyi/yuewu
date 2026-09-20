@@ -281,6 +281,18 @@ class _HomePageState extends State<HomePage> with RouteAware {
   }
 
   void _openChat(Map<String, dynamic> character) {
+    final isStory = character['isStory'] == true || character['source'] == 'stories';
+    if (isStory) {
+      Navigator.pushNamed(
+        context,
+        '/story_chat',
+        arguments: {
+          'storyId': character['id'],
+          'storyName': character['name'] ?? '',
+        },
+      );
+      return;
+    }
     Navigator.pushNamed(
       context,
       '/chat',

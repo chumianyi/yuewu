@@ -13,6 +13,7 @@ import 'pages/create_page.dart';
 import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 import 'pages/story_detail_page.dart';
+import 'pages/story_chat_page.dart';
 import 'pages/privacy_page.dart';
 
 void main() async {
@@ -153,6 +154,14 @@ class _YueWuAppState extends State<YueWuApp> {
               builder: (_) => StoryDetailPage(
                 storyId: '${args['storyId']}',
                 characterId: '${args['characterId']}',
+              ),
+            );
+          case '/story_chat':
+            final args = settings.arguments as Map<String, dynamic>;
+            return MaterialPageRoute(
+              builder: (_) => StoryChatPage(
+                storyId: '${args['storyId']}',
+                storyName: args['storyName'] ?? '',
               ),
             );
         }
