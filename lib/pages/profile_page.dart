@@ -255,7 +255,10 @@ class _ProfilePageState extends State<ProfilePage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(leading: const Icon(Icons.notifications), title: const Text('通知设置'), onTap: () => Navigator.pop(ctx)),
-            ListTile(leading: const Icon(Icons.privacy_tip), title: const Text('隐私设置'), onTap: () => Navigator.pop(ctx)),
+            ListTile(leading: const Icon(Icons.privacy_tip), title: const Text('隐私设置'), onTap: () {
+              Navigator.pop(ctx);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPage()));
+            }),
             ListTile(leading: const Icon(Icons.palette), title: const Text('外观设置'), onTap: () => Navigator.pop(ctx)),
             ListTile(leading: const Icon(Icons.cleaning_services), title: const Text('清除缓存'), onTap: () { Navigator.pop(ctx); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('缓存已清除'))); }),
           ],
