@@ -154,25 +154,28 @@ class _ChatPageState extends State<ChatPage> {
             .sublist(0, _messages.length - 1)
             .map((m) => Map<String, String>.from(m)),
       ];
-      final res = await _api.chat(
+
+      // 流式：逐字追加到最后一条气泡
+      final fullReply = await _api.chatStream(
         _modelForMode,
         reqMessages,
         widget.characterId,
         widget.storyId,
+        (chunk) {
+          if (mounted) {
+            setState(() {
+              _messages.last['content'] = (_messages.last['content'] ?? '') + chunk;
+            });
+          }
+          _scrollToBottom();
+        },
       );
 
-      final reply = (res['reply'] ?? res['content'] ?? '').toString();
-      if (mounted) {
+      final reply = fullReply;
+      if (mounted && reply.isEmpty) {
         setState(() {
-          _messages.last['content'] = reply;
+          _messages.last['content'] = '（无回复）';
         });
-      }
-      _scrollToBottom();
-
-      // 后端返回的休息提醒
-      final breakReminder = res['break_reminder'];
-      if (breakReminder != null && breakReminder.toString().isNotEmpty) {
-        _showBreakReminder(breakReminder.toString());
       }
 
       // 检测剧情模式选项

@@ -2,10 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../api_service.dart';
 import 'create_character_page.dart';
-import 'create_story_page.dart';
 import 'ai_assist_dialog.dart';
 import 'interactive_page.dart';
-import 'video_page.dart';
 
 const Color _kPrimary = Color(0xFFFFB6C1);
 const Color _kBg = Color(0xFFFFF0F5);
@@ -18,8 +16,8 @@ class CreatePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 5,
-      initialIndex: initialIndex,
+      length: 3,
+      initialIndex: initialIndex > 2 ? 0 : initialIndex,
       child: Scaffold(
         backgroundColor: _kBg,
         appBar: AppBar(
@@ -40,18 +38,14 @@ class CreatePage extends StatelessWidget {
             tabs: [
               Tab(text: '捏形象'),
               Tab(text: '角色'),
-              Tab(text: '故事'),
               Tab(text: '互动剧'),
-              Tab(text: '视频'),
             ],
           ),
         ),
         body: const TabBarView(children: [
           _PortraitTab(),
           _CharacterTab(),
-          _StoryTab(),
           InteractivePage(),
-          VideoPage(),
         ]),
       ),
     );
@@ -457,315 +451,6 @@ class _CharacterTabState extends State<_CharacterTab> {
                       style: const TextStyle(fontSize: 16, height: 1.5),
                       decoration: const InputDecoration(
                         hintText: '输入你想创建的角色',
-                        hintStyle:
-                            TextStyle(color: Color(0xFFBDBDBD), fontSize: 18),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.all(24),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: ElevatedButton.icon(
-                        onPressed: _openAiAssist,
-                        icon: const Icon(Icons.auto_awesome, size: 18),
-                        label: const Text('AI助手'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _kPrimary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20)),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        // 快捷chip横滑
-        SizedBox(
-          height: 40,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: _chips.length,
-            itemBuilder: (context, i) {
-              return Container(
-                margin: const EdgeInsets.only(right: 10),
-                child: ActionChip(
-                  label: Text(_chips[i]),
-                  onPressed: () => _ctrl.text = _chips[i],
-                  backgroundColor: _kCard,
-                  side: BorderSide.none,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20)),
-                  labelStyle: const TextStyle(fontSize: 13),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 16),
-      ],
-    );
-  }
-}
-
-// ── 故事 Tab ────────────────────────────────────────────────
-
-class _StoryTab extends StatefulWidget {
-  const _StoryTab();
-
-  @override
-  State<_StoryTab> createState() => _StoryTabState();
-}
-
-class _StoryTabState extends State<_StoryTab> {
-  final _ctrl = TextEditingController();
-  bool _isPlot = true; // true=剧情故事, false=开放故事
-  List<dynamic> _myCharacters = [];
-  final Set<String> _selectedCharIds = {};
-  bool _loadingChars = false;
-  static const _chips = [
-    '弹幕系统',
-    '拒绝PUA',
-    '角色失忆了',
-    '我是副本Boss',
-    '我有隐藏实力',
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadMyCharacters();
-  }
-
-  Future<void> _loadMyCharacters() async {
-    setState(() => _loadingChars = true);
-    try {
-      final chars = await ApiService().getMyCharacters();
-      setState(() => _myCharacters = chars);
-    } catch (_) {
-      // 静默失败
-    } finally {
-      if (mounted) setState(() => _loadingChars = false);
-    }
-  }
-
-  void _openAiAssist() async {
-    final result = await showDialog<String>(
-      context: context,
-      builder: (_) => AiAssistDialog(
-        title: 'AI构建世界观',
-        hint: '描述你想构建的故事世界观，比如：修仙世界，宗门对立',
-        systemPrompt:
-            '你是一个AI故事创作助手。用户会描述想要的世界观，请据此生成详细的故事设定，包含：世界观背景、主要人物关系、剧情走向、核心冲突。用中文输出。',
-      ),
-    );
-    if (result != null && result.isNotEmpty) {
-      setState(() => _ctrl.text = result);
-    }
-  }
-
-  void _showCharacterPicker() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: _kBg,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text('选择参与角色',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            if (_loadingChars)
-              const Padding(
-                padding: EdgeInsets.all(20),
-                child: CircularProgressIndicator(color: _kPrimary),
-              )
-            else if (_myCharacters.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(20),
-                child: Text('还没有自己的角色，先去创建吧',
-                    style: TextStyle(color: Colors.grey)),
-              )
-            else
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _myCharacters.length,
-                  itemBuilder: (context, i) {
-                    final c = _myCharacters[i];
-                    final id = (c['id'] ?? c['_id'] ?? '').toString();
-                    final name = (c['name'] ?? '未命名').toString();
-                    final selected = _selectedCharIds.contains(id);
-                    return CheckboxListTile(
-                      value: selected,
-                      activeColor: _kPrimary,
-                      title: Text(name),
-                      onChanged: (v) {
-                        setState(() {
-                          if (v == true) {
-                            _selectedCharIds.add(id);
-                          } else {
-                            _selectedCharIds.remove(id);
-                          }
-                        });
-                      },
-                    );
-                  },
-                ),
-              ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // 顶部切换 + 右上角自定义创建
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // 剧情故事 | 开放故事 切换
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => setState(() => _isPlot = true),
-                    child: Text(
-                      '剧情故事',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: _isPlot ? FontWeight.bold : FontWeight.normal,
-                        color: _isPlot ? _kPrimary : const Color(0xFF9E9E9E),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  GestureDetector(
-                    onTap: () => setState(() => _isPlot = false),
-                    child: Text(
-                      '开放故事',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: !_isPlot ? FontWeight.bold : FontWeight.normal,
-                        color: !_isPlot ? _kPrimary : const Color(0xFF9E9E9E),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              // 自定义创建按钮（剧情故事禁用）
-              TextButton(
-                onPressed: _isPlot
-                    ? null
-                    : () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => CreateStoryPage(
-                              prefill: _ctrl.text,
-                              selectedCharIds: _selectedCharIds.toList(),
-                            ),
-                          ),
-                        );
-                      },
-                style: TextButton.styleFrom(
-                  foregroundColor: _isPlot
-                      ? Colors.grey[400]
-                      : _kPrimary,
-                ),
-                child: Text(
-                  '自定义创建',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: _isPlot ? Colors.grey[400] : _kPrimary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: _kCard,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: _kPrimary.withValues(alpha: 0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // +参与角色
-                  GestureDetector(
-                    onTap: _showCharacterPicker,
-                    child: Container(
-                      margin: const EdgeInsets.all(16),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF5F8),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: _kPrimary.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.person_add,
-                              size: 18, color: _kPrimary),
-                          const SizedBox(width: 6),
-                          Text(
-                            _selectedCharIds.isEmpty
-                                ? '+ 参与角色'
-                                : '已选 ${_selectedCharIds.length} 个角色',
-                            style: const TextStyle(
-                                color: _kPrimary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _ctrl,
-                      maxLines: null,
-                      expands: true,
-                      textAlignVertical: TextAlignVertical.top,
-                      style: const TextStyle(fontSize: 16, height: 1.5),
-                      decoration: const InputDecoration(
-                        hintText: '输入你想构建的世界观',
                         hintStyle:
                             TextStyle(color: Color(0xFFBDBDBD), fontSize: 18),
                         border: InputBorder.none,

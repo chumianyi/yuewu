@@ -215,6 +215,63 @@ class ApiService {
     }) as Map<String, dynamic>;
   }
 
+  /// 流式对话（SSE）：逐字回调 onChunk(content)。
+  /// 返回完整文本。
+  Future<String> chatStream(
+    String model,
+    List<Map<String, String>> messages,
+    String? characterId,
+    String? storyId,
+    void Function(String chunk) onChunk,
+  ) async {
+    final uri = Uri.parse('$baseUrl/api/chat/stream');
+    final req = http.Request('POST', uri);
+    req.headers.addAll(_headers);
+    req.body = jsonEncode({
+      'model': model,
+      'messages': messages,
+      if (characterId != null) 'characterId': characterId,
+      if (storyId != null) 'storyId': storyId,
+    });
+    final client = http.Client();
+    String full = '';
+    try {
+      final streamed = await client.send(req);
+      if (streamed.statusCode == 401) {
+        await _saveToken(null);
+        _redirectToLogin();
+        throw ApiException(401, '');
+      }
+      if (streamed.statusCode >= 400) {
+        throw ApiException(streamed.statusCode, '');
+      }
+      await for (final line in streamed.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())) {
+        if (!line.startsWith('data: ')) continue;
+        final dataStr = line.substring(6).trim();
+        if (dataStr == '[DONE]') break;
+        try {
+          final data = jsonDecode(dataStr);
+          if (data['content'] != null) {
+            final c = data['content'].toString();
+            full += c;
+            onChunk(c);
+          }
+          if (data['done'] == true) break;
+          if (data['error'] != null) {
+            full += data['error'].toString();
+            onChunk(data['error'].toString());
+            break;
+          }
+        } catch (_) {}
+      }
+    } finally {
+      client.close();
+    }
+    return full;
+  }
+
   Future<Map<String, dynamic>> saveChat(
     String characterId,
     String? storyId,
@@ -370,6 +427,28 @@ class ApiService {
   Future<Map<String, dynamic>> interactiveChoice(String appId, String choice) async {
     return await _send('POST', '/api/interactive/$appId/choice',
         {'choice': choice}) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> interactivePublish(String appId) async {
+    return await _send('POST', '/api/interactive/$appId/publish', {}) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> interactiveUnpublish(String appId) async {
+    return await _send('POST', '/api/interactive/$appId/unpublish', {}) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> interactiveDelete(String appId) async {
+    return await _send('DELETE', '/api/interactive/$appId', {}) as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> interactivePublished() async {
+    final res = await _send('GET', '/api/interactive/published');
+    if (res is Map) return res['list'] ?? [];
+    return res is List ? res : [];
+  }
+
+  Future<Map<String, dynamic>> interactiveCover(String appId) async {
+    return await _send('POST', '/api/interactive/$appId/cover', {}) as Map<String, dynamic>;
   }
 
   // ── Video ─────────────────────────────────────────────

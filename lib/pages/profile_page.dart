@@ -16,7 +16,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? _user;
   Map<String, dynamic>? _usage;
   List<dynamic> _myChars = [];
-  List<dynamic> _myStories = [];
+  List<dynamic> _myInteractive = [];
   bool _loading = true;
 
   @override
@@ -32,13 +32,13 @@ class _ProfilePageState extends State<ProfilePage> {
         _api.getMe(),
         _api.getUsage(),
         _api.getMyCharacters(),
-        _api.getMyStories(),
+        _api.interactiveList(),
       ]);
       setState(() {
         _user = results[0] as Map<String, dynamic>?;
         _usage = results[1] as Map<String, dynamic>?;
         _myChars = results[2] as List;
-        _myStories = results[3] as List;
+        _myInteractive = results[3] as List;
         _loading = false;
       });
     } catch (e) {
@@ -96,7 +96,7 @@ class _ProfilePageState extends State<ProfilePage> {
               children: [
                 Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text('${_myChars.length} 个角色 · ${_myStories.length} 个故事',
+                Text('${_myChars.length} 个角色 · ${_myInteractive.length} 个互动剧',
                     style: TextStyle(fontSize: 13, color: Colors.grey[600])),
               ],
             ),
@@ -144,6 +144,8 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildMyWorks() {
+    final drafts = _myInteractive.where((w) => w['published'] != true).toList();
+    final published = _myInteractive.where((w) => w['published'] == true).toList();
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(20),
@@ -156,17 +158,41 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           const Text('我的作品', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          if (_myChars.isEmpty && _myStories.isEmpty)
+          if (_myChars.isEmpty && _myInteractive.isEmpty)
             const Text('还没有作品，去创作吧', style: TextStyle(color: Colors.grey)),
           ..._myChars.take(3).map((c) => ListTile(
-                leading: CircleAvatar(backgroundColor: Colors.pink.shade100, child: Text(c['name']?[0] ?? '?')),
+                leading: CircleAvatar(backgroundColor: Colors.pink.shade100, child: Text((c['name'] ?? '?')[0])),
                 title: Text(c['name'] ?? ''),
-                subtitle: Text('${c['likeCount'] ?? 0} 赞 · ${c['commentCount'] ?? 0} 评论'),
+                subtitle: Text('角色 · ${c['likeCount'] ?? 0} 赞'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {},
               )),
-          if (_myChars.length > 3)
-            Center(child: TextButton(onPressed: () {}, child: const Text('查看全部'))),
+          if (published.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text('已发布互动剧', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+            ),
+            ...published.take(3).map((w) => ListTile(
+                  leading: const Icon(Icons.auto_stories, color: Color(0xFFCE93D8)),
+                  title: Text(w['title'] ?? ''),
+                  subtitle: const Text('互动剧'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {},
+                )),
+          ],
+          if (drafts.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text('草稿箱', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.orange)),
+            ),
+            ...drafts.take(3).map((w) => ListTile(
+                  leading: const Icon(Icons.edit_note, color: Colors.orange),
+                  title: Text(w['title'] ?? ''),
+                  subtitle: const Text('草稿 · 未发布'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {},
+                )),
+          ],
         ],
       ),
     );
