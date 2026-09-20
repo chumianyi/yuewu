@@ -25,12 +25,11 @@ class _MessagesPageState extends State<MessagesPage> {
     setState(() => _loading = true);
     try {
       final results = await Future.wait([
-        _api.getMyStories(),
         _api.getMyCharacters(),
       ]);
       if (mounted) {
         setState(() {
-          _convs = [...results[0], ...results[1]];
+          _convs = [...results[0]];
           _loading = false;
         });
       }
