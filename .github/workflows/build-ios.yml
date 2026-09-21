@@ -21,12 +21,18 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Build IPA (unsigned)
-        run: flutter build ipa --release --no-codesign
+      - name: Build iOS (unsigned)
+        run: flutter build ios --release --no-codesign
 
-      - name: Upload IPA
+      - name: Zip .app
+        run: |
+          cd build/ios/iphoneos
+          zip -r ../../../yuewu-ios.app.zip Runner.app
+          cd ../..
+
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: yuewu-ios
-          path: build/ios/ipa/*.ipa
+          path: yuewu-ios.app.zip
           retention-days: 7
