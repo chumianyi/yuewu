@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'server_config.dart';
 
 /// 从创建/详情页返回时通知主页重新加载最新列表。
 final RouteObserver<ModalRoute<void>> routeObserver = RouteObserver<ModalRoute<void>>();
@@ -11,7 +14,8 @@ class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
 
-  final String baseUrl = "http://103.236.99.177:24512";
+  /// 服务器基地址：来自当前选择的服务器（星悟主服地址以混淆密文存储，运行期解密）。
+  String get baseUrl => ServerManager().current.baseUrl;
   String? _token;
   SharedPreferences? _prefs;
 
@@ -43,6 +47,11 @@ class ApiService {
     if (_token != null && _token!.isNotEmpty) {
       h['Authorization'] = 'Bearer $_token';
     }
+    // 自定义服务器若配置了 API Key，随请求携带
+    final apiKey = ServerManager().current.apiKey;
+    if (apiKey != null && apiKey.isNotEmpty) {
+      h['X-API-Key'] = apiKey;
+    }
     return h;
   }
 
@@ -64,6 +73,10 @@ class ApiService {
 
   Future<dynamic> _send(String method, String path,
       [Map<String, dynamic>? data]) async {
+    // UDP 协议服务器：走数据报传输（一次请求/响应，JSON 报文）
+    if (ServerManager().current.isUdp) {
+      return _sendUdp(path, data);
+    }
     final uri = Uri.parse('$baseUrl$path');
     // 关键：body 必须是 jsonEncode(data) 得到的字符串，Content-Type 为 application/json，
     // 不能把 Map 直接 toString()。使用 package:http 保证编码正确。
@@ -94,6 +107,74 @@ class ApiService {
     }
     if (rbody.isEmpty) return {};
     return jsonDecode(rbody);
+  }
+
+  /// UDP 传输：发送 JSON 报文 {"path": ..., "body": ..., "token": ..., "api_key": ...}，
+  /// 等待 {"status": ..., "body": ...} 响应。
+  /// 适用于自定义服务器选择 UDP 协议的场景。
+  Future<dynamic> _sendUdp(String path, [Map<String, dynamic>? data]) async {
+    final cfg = ServerManager().current;
+    final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+    final request = jsonEncode({
+      'path': path,
+      'body': data ?? <String, dynamic>{},
+      if (_token != null && _token!.isNotEmpty) 'token': _token,
+      if (cfg.apiKey != null && cfg.apiKey!.isNotEmpty) 'api_key': cfg.apiKey,
+    });
+    socket.send(utf8.encode(request), InternetAddress(cfg.ip), cfg.port);
+    final completer = Completer<dynamic>();
+    socket.listen((event) {
+      if (event == RawSocketEvent.read) {
+        final dp = socket.receive();
+        if (dp != null) {
+          socket.close();
+          final str = utf8.decode(dp.data);
+          try {
+            final resp = jsonDecode(str) as Map<String, dynamic>;
+            final status = (resp['status'] as num?)?.toInt() ?? 200;
+            final body = resp['body'];
+            if (status == 401) {
+              _saveToken(null);
+              _redirectToLogin();
+              completer.completeError(ApiException(401, body?.toString() ?? ''));
+            } else if (status >= 400) {
+              completer.completeError(
+                  ApiException(status, body?.toString() ?? ''));
+            } else {
+              completer.complete(body);
+            }
+          } catch (e) {
+            completer.completeError(ApiException(0, 'UDP 响应解析失败'));
+          }
+        }
+      }
+    });
+    return completer.future.timeout(const Duration(seconds: 20));
+  }
+
+  // ── Server / api.json ──────────────────────────────────
+
+  /// 每次启动从当前服务器拉取 api.json：
+  /// 包含可用模型列表、正版校验开关、服务器名称等。
+  Future<Map<String, dynamic>> fetchApiConfig() async {
+    final res = await _send('GET', '/api.json') as Map<String, dynamic>;
+    await ServerManager().cacheApiConfig(res);
+    return res;
+  }
+
+  /// 在服务器模型列表中解析出合适的模型 id。
+  /// 若服务器未提供模型列表，则回退到客户端内置的偏好模型。
+  static String resolveModel(
+    String preferred,
+    List<String> fallbacks,
+  ) {
+    final ids = ServerManager().modelIds;
+    if (ids.isEmpty) return preferred;
+    if (ids.contains(preferred)) return preferred;
+    for (final f in fallbacks) {
+      if (ids.contains(f)) return f;
+    }
+    return ids.first;
   }
 
   // ── Auth ──────────────────────────────────────────────
@@ -216,7 +297,7 @@ class ApiService {
   }
 
   /// 流式对话（SSE）：逐字回调 onChunk(content)。
-  /// 返回完整文本。
+  /// 返回完整文本。UDP 服务器走一次性请求/响应，回调一次完整回复。
   Future<String> chatStream(
     String model,
     List<Map<String, String>> messages,
@@ -224,6 +305,21 @@ class ApiService {
     String? storyId,
     void Function(String chunk) onChunk,
   ) async {
+    if (ServerManager().current.isUdp) {
+      final res = await _sendUdp('/api/chat', {
+        'model': model,
+        'messages': messages,
+        if (characterId != null) 'characterId': characterId,
+        if (storyId != null) 'storyId': storyId,
+      });
+      final map = res is Map ? Map<String, dynamic>.from(res) : <String, dynamic>{};
+      final reply = map['reply']?.toString() ??
+          map['content']?.toString() ??
+          map['message']?.toString() ??
+          '';
+      if (reply.isNotEmpty) onChunk(reply);
+      return reply;
+    }
     final uri = Uri.parse('$baseUrl/api/chat/stream');
     final req = http.Request('POST', uri);
     req.headers.addAll(_headers);

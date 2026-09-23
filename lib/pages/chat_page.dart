@@ -120,15 +120,21 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   String get _modelForMode {
+    // 模型不再固定：优先使用服务器 api.json 提供的模型列表，
+    // 服务器未提供时才回退到客户端内置的偏好模型。
     switch (_mode) {
       case ChatMode.long:
-        return 'deepseek-reasoner';
+        return ApiService.resolveModel('deepseek-reasoner',
+            const ['deepseek-chat', 'deepseek-v3', 'extreme']);
       case ChatMode.normal:
-        return 'deepseek-chat';
+        return ApiService.resolveModel('deepseek-chat',
+            const ['deepseek-reasoner', 'deepseek-v3', 'extreme']);
       case ChatMode.delicate:
-        return 'deepseek-v3';
+        return ApiService.resolveModel('deepseek-v3',
+            const ['deepseek-chat', 'deepseek-reasoner', 'extreme']);
       case ChatMode.extreme:
-        return 'extreme';
+        return ApiService.resolveModel('extreme',
+            const ['deepseek-chat', 'deepseek-v3', 'deepseek-reasoner']);
     }
   }
 

@@ -177,6 +177,8 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       child: Column(
         children: [
+          _menuItem(Icons.dns_outlined, '切换服务器', () => _switchServer()),
+          const Divider(height: 1),
           _menuItem(Icons.person_outline, '编辑资料', () => _showEditProfile()),
           _menuItem(Icons.lock_outline, '修改密码', () => _showChangePassword()),
           _menuItem(Icons.settings, l10n.t('设置'), () => _showSettings()),
@@ -201,6 +203,29 @@ class _ProfilePageState extends State<ProfilePage> {
       trailing: const Icon(Icons.chevron_right, color: Colors.grey),
       onTap: onTap,
     );
+  }
+
+  /// 切换服务器：退出当前登录并回到服务器选择页
+  Future<void> _switchServer() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('切换服务器'),
+        content: const Text('切换服务器后将退出当前账号登录，确定继续吗？'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('确定')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _api.logout();
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(context, '/server_select', (_) => false);
   }
 
   void _showEditProfile() {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../api_service.dart';
+import '../server_config.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -63,6 +64,46 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  /// 当前服务器信息条：服务器名称 + 正版校验状态
+  Widget _buildServerBanner() {
+    final mgr = ServerManager();
+    final official = mgr.officialValidation;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _pink.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.dns, size: 20, color: Color(0xFFFFB6C1)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              mgr.serverName,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF4A4A4A)),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: official ? const Color(0xFFFFE3E8) : const Color(0xFFE8F5E9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              official ? '正版校验' : '免校验',
+              style: TextStyle(
+                fontSize: 11,
+                color: official ? const Color(0xFFC2185B) : const Color(0xFF2E7D32),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -109,7 +150,9 @@ class _LoginPageState extends State<LoginPage> {
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: 16),
+                _buildServerBanner(),
+                const SizedBox(height: 32),
                 TextField(
                   controller: _usernameCtrl,
                   textInputAction: TextInputAction.next,

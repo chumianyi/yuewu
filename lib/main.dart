@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'api_service.dart';
 import 'l10n.dart';
+import 'server_config.dart';
 import 'pages/home_page.dart';
 import 'pages/chat_page.dart';
 import 'pages/discover_page.dart';
@@ -13,12 +14,20 @@ import 'pages/create_page.dart';
 import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 import 'pages/privacy_page.dart';
+import 'pages/server_select_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   await ApiService().init();
+  await ServerManager().init();
   await AppLocale.instance.load();
+  // 已配置服务器时，每次启动自动从服务器拉取 api.json（失败时回退缓存）
+  if (ServerManager().isConfigured) {
+    try {
+      await ApiService().fetchApiConfig();
+    } catch (_) {}
+  }
   runApp(const YueWuApp());
 }
 
@@ -118,8 +127,13 @@ class _YueWuAppState extends State<YueWuApp> {
           ),
         ),
       ),
-      initialRoute: ApiService().isLoggedIn ? '/main' : '/login',
+      initialRoute: !ServerManager().isConfigured
+          ? '/server_select'
+          : ApiService().isLoggedIn
+              ? '/main'
+              : '/login',
       routes: {
+        '/server_select': (_) => const ServerSelectPage(),
         '/login': (_) => const LoginPage(),
         '/register': (_) => const RegisterPage(),
         '/main': (_) => const MainPage(),
