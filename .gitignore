@@ -14,3 +14,9 @@ android/gradle/
 android/gradle.properties
 android/gradle/wrapper/
 .DS_Store
+
+# 本地工具生成的插件注册文件（CI 会自动重新生成）
+android/app/src/main/java/
+ios/Flutter/
+ios/Runner/GeneratedPluginRegistrant.h
+ios/Runner/GeneratedPluginRegistrant.m
