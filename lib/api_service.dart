@@ -464,6 +464,28 @@ class ApiService {
     return res is List ? res : [];
   }
 
+  // Code Assistant
+  Future<dynamic> codeGenerate(String prompt, String name) async {
+    return _send('POST', '/api/code-assistant/generate', {'prompt': prompt, 'name': name});
+  }
+  Future<List<dynamic>> codeMyList() async {
+    final res = await _send('GET', '/api/code-assistant/list');
+    if (res is Map) return res['list'] ?? [];
+    return [];
+  }
+  Future<List<dynamic>> codePublished() async {
+    final res = await _send('GET', '/api/code-assistant/published');
+    if (res is Map) return res['list'] ?? [];
+    return [];
+  }
+  Future<dynamic> codePublish(String id) => _send('POST', '/api/code-assistant/$id/publish');
+  Future<dynamic> codeDelete(String id) => _send('DELETE', '/api/code-assistant/$id');
+
+  Future<dynamic> partnerChat(String message, String mode) async {
+    return _send('POST', '/api/partner/chat', {'message': message, 'mode': mode});
+  }
+  Future<dynamic> wsZip() => _send('POST', '/api/workspace/zip');
+
   // kept for logout compat
   Future<dynamic> _post(String path, [Map<String, dynamic>? data]) {
     return _send('POST', path, data);

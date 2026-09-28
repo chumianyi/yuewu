@@ -185,6 +185,9 @@ class _ProfilePageState extends State<ProfilePage> {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPage()));
           }),
           _menuItem(Icons.feedback_outlined, '意见反馈', () => _showFeedback()),
+          _menuItem(Icons.sports_esports, '代码小助手', () {
+            Navigator.pushNamed(context, '/code_assistant');
+          }),
           _menuItem(Icons.info_outline, '关于月悟', () => _showAbout()),
           const Divider(height: 1),
           _menuItem(Icons.logout, l10n.t('退出登录'), () => _logout(), color: Colors.red),

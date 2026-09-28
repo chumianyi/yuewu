@@ -13,6 +13,7 @@ import 'pages/create_page.dart';
 import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 import 'pages/privacy_page.dart';
+import 'pages/code_assistant_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -129,6 +130,7 @@ class _YueWuAppState extends State<YueWuApp> {
         '/profile': (_) => const ProfilePage(),
         '/create_character': (_) => const CreateCharacterPage(),
         '/privacy': (_) => const PrivacyPage(),
+        '/code_assistant': (_) => const CodeAssistantPage(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {

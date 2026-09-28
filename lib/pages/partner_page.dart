@@ -13,11 +13,11 @@ class _PartnerPageState extends State<PartnerPage> {
   final _pink = const Color(0xFFFFB6C1);
 
   Map<String, dynamic> _partner = {
-    'name': '悟悟',
+    'name': '初眠',
     'brief': '你的专属 AI 伙伴，随时陪伴你聊天。',
     'description': '你的专属 AI 伙伴，随时陪伴你聊天。',
     'portrait': null,
-    'greeting': '你好呀，我是悟悟，今天想聊点什么？',
+    'greeting': '你好呀，我是初眠，今天想聊点什么？',
   };
   bool _loading = true;
 
@@ -34,13 +34,13 @@ class _PartnerPageState extends State<PartnerPage> {
         setState(() => _partner = {..._partner, ...p});
       }
     } catch (_) {
-      // 接口不可用时保持默认「悟悟」
+      // 接口不可用时保持默认「初眠」
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  String get _name => (_partner['name'] ?? '悟悟').toString();
+  String get _name => (_partner['name'] ?? '初眠').toString();
   String get _intro =>
       (_partner['brief'] ?? _partner['description'] ?? '你的专属 AI 伙伴').toString();
   String? get _characterId {
@@ -59,6 +59,17 @@ class _PartnerPageState extends State<PartnerPage> {
       '/chat',
       arguments: {'characterId': _characterId, 'characterName': _name},
     );
+  }
+
+  String _mode = 'fast';
+  final List<Map<String, dynamic>> _modes = [
+    {'v': 'fast', 'label': '快速', 'icon': Icons.bolt},
+    {'v': 'expert', 'label': '专家', 'icon': Icons.psychology},
+    {'v': 'engineer', 'label': '工程', 'icon': Icons.build},
+  ];
+
+  void _openPartnerChat() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => _PartnerChatPage(mode: _mode, name: _name)));
   }
 
   @override
@@ -158,10 +169,29 @@ class _PartnerPageState extends State<PartnerPage> {
                         ),
                         const SizedBox(height: 28),
                         SizedBox(
+                          height: 40,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: _modes.map((m) {
+                              final sel = _mode == m['v'];
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                child: ChoiceChip(
+                                  selected: sel,
+                                  label: Text(m['label']),
+                                  avatar: Icon(m['icon'], size: 16),
+                                  onSelected: (_) => setState(() => _mode = m['v']),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
                           width: double.infinity,
                           height: 52,
                           child: ElevatedButton.icon(
-                            onPressed: _openChat,
+                            onPressed: _openPartnerChat,
                             icon: const Icon(Icons.chat_bubble_outline),
                             label: const Text('开始聊天', style: TextStyle(fontSize: 16)),
                           ),
@@ -295,6 +325,93 @@ class _PartnerPageState extends State<PartnerPage> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _PartnerChatPage extends StatefulWidget {
+  final String mode;
+  final String name;
+  const _PartnerChatPage({required this.mode, required this.name});
+  @override
+  State<_PartnerChatPage> createState() => _PartnerChatPageState();
+}
+
+class _PartnerChatPageState extends State<_PartnerChatPage> {
+  final _api = ApiService();
+  final _ctrl = TextEditingController();
+  final List<Map<String, String>> _msgs = [];
+  bool _busy = false;
+
+  Future<void> _send() async {
+    final text = _ctrl.text.trim();
+    if (text.isEmpty || _busy) return;
+    _ctrl.clear();
+    setState(() {
+      _msgs.add({'role': 'user', 'text': text});
+      _busy = true;
+    });
+    try {
+      final res = await _api.partnerChat(text, widget.mode);
+      final reply = (res['reply'] ?? '').toString();
+      final think = (res['think'] ?? '').toString();
+      setState(() {
+        if (think.isNotEmpty) _msgs.add({'role': 'think', 'text': think});
+        _msgs.add({'role': 'ai', 'text': reply});
+      });
+    } catch (e) {
+      setState(() => _msgs.add({'role': 'ai', 'text': '出错了: $e'}));
+    } finally {
+      setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('${widget.name} · ${widget.mode}')),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: _msgs.length,
+              itemBuilder: (_, i) {
+                final m = _msgs[i];
+                final isUser = m['role'] == 'user';
+                final isThink = m['role'] == 'think';
+                return Align(
+                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.all(12),
+                    constraints: const BoxConstraints(maxWidth: 280),
+                    decoration: BoxDecoration(
+                      color: isThink ? Colors.grey[200] : (isUser ? const Color(0xFFFFB6C1) : Colors.grey[100]),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      (isThink ? '💭 ' : '') + (m['text'] ?? ''),
+                      style: TextStyle(fontSize: isThink ? 12 : 14, color: isThink ? Colors.grey[600] : Colors.black87, fontStyle: isThink ? FontStyle.italic : FontStyle.normal),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          if (_busy) const LinearProgressIndicator(color: Color(0xFFFFB6C1)),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              children: [
+                Expanded(child: TextField(controller: _ctrl, decoration: const InputDecoration(hintText: '输入消息...', border: OutlineInputBorder()), onSubmitted: (_) => _send())),
+                const SizedBox(width: 8),
+                IconButton(onPressed: _send, icon: const Icon(Icons.send, color: Color(0xFFFFB6C1))),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
